@@ -874,67 +874,215 @@ def announcement_page():
 def shift_portal():
     return '''
     <html>
-    <head><title>Shift Management</title></head>
-    <body style="font-family:Segoe UI,Arial;background:#f8f9fa;padding:40px;">
-        <h2>📋 Shift Management</h2>
+    <head>
+        <title>Shift Management</title>
+        <style>
+            body{font-family:Segoe UI,Arial;background:#f8f9fa;padding:40px;}
+            h2{color:#2c3e50;}
+            .add-shift-form{background:white;padding:20px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:30px;}
+            table{width:100%;border-collapse:collapse;margin-top:20px;background:white;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+            th,td{border:1px solid #ddd;padding:12px;text-align:center;}
+            th{background:#b30000;color:white;font-weight:bold;}
+            tr:nth-child(even){background:#f9f9f9;}
+            .available{color:#27ae60;font-weight:bold;}
+            .taken{color:#95a5a6;}
+            button{padding:8px 16px;border:none;border-radius:5px;cursor:pointer;font-weight:bold;margin:2px;}
+            .pick-btn{background:#27ae60;color:white;}
+            .drop-btn{background:#e74c3c;color:white;}
+            .delete-btn{background:#c0392b;color:white;}
+            .add-btn{background:#3498db;color:white;padding:10px 20px;}
+            .back-btn{background:#2c3e50;color:white;padding:12px 24px;margin-top:20px;}
+            select,input{padding:8px;border-radius:5px;border:1px solid #ccc;margin:5px;}
+        </style>
+    </head>
+    <body>
+        <h2>📋 Shift Management Portal</h2>
+        <p>Add new shifts, pick available shifts, or drop assigned shifts</p>
+        
+        <div class="add-shift-form">
+            <h3>➕ Add New Shift</h3>
+            <select id="daySelect">
+                <option value="">Select Day</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+            </select>
+            <select id="timeSelect">
+                <option value="">Select Time</option>
+                <option value="6am-2pm">6am-2pm</option>
+                <option value="7am-3pm">7am-3pm</option>
+                <option value="8am-4pm">8am-4pm</option>
+                <option value="8:30am-4:30pm">8:30am-4:30pm</option>
+                <option value="9am-5pm">9am-5pm</option>
+                <option value="10am-6pm">10am-6pm</option>
+                <option value="11am-7pm">11am-7pm</option>
+                <option value="12pm-8pm">12pm-8pm</option>
+                <option value="2pm-10pm">2pm-10pm</option>
+            </select>
+            <button class="add-btn" onclick="addShift()">Add Shift</button>
+        </div>
+        
         <div id="shiftTable"></div>
+        
         <script>
         async function loadShifts(){
             let res = await fetch("/shifts");
             let data = await res.json();
-            let html = "<table border='1' cellpadding='8'><tr><th>ID</th><th>Date</th><th>Time</th><th>Assigned To</th><th>Action</th></tr>";
+            
+            let html = "<table><tr><th>Shift ID</th><th>Day</th><th>Time</th><th>Assigned To</th><th>Actions</th></tr>";
+            
+            if(data.length === 0){
+                html += "<tr><td colspan='5' style='text-align:center;color:#95a5a6;'>No shifts available yet. Add a new shift above!</td></tr>";
+            }
+            
             data.forEach(s=>{
-                html += `<tr><td>${s.id}</td><td>${s.date}</td><td>${s.time}</td><td>${s.assigned_to||"Available"}</td>
-                <td>${s.assigned_to ? 
-                    `<button onclick="drop(${s.id}, '${s.assigned_to}')">Drop</button>` : 
-                    `<button onclick="pick(${s.id})">Pick</button>`}</td></tr>`;
+                html += `<tr>
+                    <td><strong>#${s.id}</strong></td>
+                    <td><strong>${s.day}</strong></td>
+                    <td>${s.time}</td>
+                    <td class="${s.assigned_to ? 'taken' : 'available'}">
+                        ${s.assigned_to || 'Available'}
+                    </td>
+                    <td>
+                        ${s.assigned_to ? 
+                            `<button class="drop-btn" onclick="dropAssignment(${s.id}, '${s.assigned_to}')">Unassign</button>` : 
+                            `<button class="pick-btn" onclick="pick(${s.id}, '${s.day}', '${s.time}')">Pick Shift</button>`
+                        }
+                        <button class="delete-btn" onclick="deleteShift(${s.id}, '${s.day}', '${s.time}')">Delete Shift</button>
+                    </td>
+                </tr>`;
             });
             html += "</table>";
             document.getElementById("shiftTable").innerHTML = html;
         }
 
-        async function pick(id){
-            const user = prompt("Enter your name:");
-            await fetch("/pick_shift",{method:"POST",headers:{"Content-Type":"application/json"},
-                body:JSON.stringify({id,user})});
-            loadShifts();
+        async function addShift(){
+            const day = document.getElementById("daySelect").value;
+            const time = document.getElementById("timeSelect").value;
+            
+            if(!day || !time){
+                alert("⚠️ Please select both day and time!");
+                return;
+            }
+            
+            try {
+                let res = await fetch("/add_shift",{
+                    method:"POST",
+                    headers:{"Content-Type":"application/json"},
+                    body:JSON.stringify({day, time})
+                });
+                let result = await res.json();
+                if(res.ok){
+                    alert(`✅ ${day} ${time} shift added successfully!`);
+                    document.getElementById("daySelect").value = "";
+                    document.getElementById("timeSelect").value = "";
+                    loadShifts();
+                } else {
+                    alert(`❌ ${result.error || 'Failed to add shift'}`);
+                }
+            } catch(e) {
+                alert("Error adding shift. Please try again.");
+            }
         }
 
-        async function drop(id,user){
-            await fetch("/drop_shift",{method:"POST",headers:{"Content-Type":"application/json"},
-                body:JSON.stringify({id,user})});
-            loadShifts();
+        async function pick(id, day, time){
+            const user = prompt(`Enter your name to pick ${day} ${time} shift:`);
+            if(!user || user.trim() === "") {
+                alert("Name is required!");
+                return;
+            }
+            
+            try {
+                let res = await fetch("/pick_shift",{
+                    method:"POST",
+                    headers:{"Content-Type":"application/json"},
+                    body:JSON.stringify({id, user: user.trim()})
+                });
+                let result = await res.json();
+                if(res.ok){
+                    alert(`✅ ${user} successfully picked ${day} ${time} shift!`);
+                    loadShifts();
+                } else {
+                    alert(`❌ ${result.error || 'Failed to pick shift'}`);
+                }
+            } catch(e) {
+                alert("Error picking shift. Please try again.");
+            }
+        }
+
+        async function dropAssignment(id, user){
+            const confirmName = prompt(`Enter your name to unassign from this shift (must match: ${user}):`);
+            if(!confirmName || confirmName.trim() === "") {
+                alert("Name is required!");
+                return;
+            }
+            
+            if(confirmName.trim().toLowerCase() !== user.toLowerCase()){
+                alert("❌ Name doesn't match! You can only unassign yourself.");
+                return;
+            }
+            
+            try {
+                let res = await fetch("/drop_shift",{
+                    method:"POST",
+                    headers:{"Content-Type":"application/json"},
+                    body:JSON.stringify({id, user: confirmName.trim()})
+                });
+                let result = await res.json();
+                if(res.ok){
+                    alert(`✅ ${user} has been unassigned. Shift is now available!`);
+                    loadShifts();
+                } else {
+                    alert(`❌ ${result.error || 'Failed to unassign'}`);
+                }
+            } catch(e) {
+                alert("Error unassigning shift. Please try again.");
+            }
+        }
+
+        async function deleteShift(id, day, time){
+            if(!confirm(`Are you sure you want to permanently delete the ${day} ${time} shift?`)){
+                return;
+            }
+            
+            try {
+                let res = await fetch("/delete_shift",{
+                    method:"POST",
+                    headers:{"Content-Type":"application/json"},
+                    body:JSON.stringify({id})
+                });
+                let result = await res.json();
+                if(res.ok){
+                    alert(`✅ ${day} ${time} shift has been deleted!`);
+                    loadShifts();
+                } else {
+                    alert(`❌ ${result.error || 'Failed to delete shift'}`);
+                }
+            } catch(e) {
+                alert("Error deleting shift. Please try again.");
+            }
         }
 
         loadShifts();
         </script>
-        <br><button onclick="window.location.href='/'">← Back to Dashboard</button>
+        
+        <button class="back-btn" onclick="window.location.href='/'">← Back to Dashboard</button>
     </body>
     </html>
-    '''
 
+    @app.route("/add_shift", methods=["POST"])
+def add_shift():
+    """Allow any employee to add a new shift"""
+    shift_data = request.json
+    day = shift_data.get("day")
+    time = shift_data.get("time")
 
-@app.route("/shifts", methods=["GET"])
-def get_shifts():
-    # We'll store shifts inside data.json under a 'shifts' key
-    all_data = {"tickets": [], "runners": [], "shifts": []}
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, "r") as f:
-                existing = json.load(f)
-                if isinstance(existing, list):
-                    all_data["tickets"] = existing
-                else:
-                    all_data.update(existing)
-        except Exception:
-            pass
-    return jsonify(all_data.get("shifts", []))
-
-@app.route("/pick_shift", methods=["POST"])
-def pick_shift():
-    user_data = request.json
-    user = user_data.get("user")
-    shift_id = user_data.get("id")
+    if not day or not time:
+        return jsonify({"error": "Day and time are required"}), 400
 
     all_data = {"tickets": [], "runners": [], "shifts": []}
     if os.path.exists(DATA_FILE):
@@ -945,22 +1093,24 @@ def pick_shift():
             else:
                 all_data.update(existing)
 
-    for s in all_data.get("shifts", []):
-        if s["id"] == shift_id:
-            if s["assigned_to"]:
-                return jsonify({"error": "Shift already taken"}), 400
-            s["assigned_to"] = user
+    new_id = len(all_data.get("shifts", [])) + 1
+    all_data.setdefault("shifts", []).append({
+        "id": new_id, 
+        "day": day, 
+        "time": time, 
+        "assigned_to": None
+    })
 
     with open(DATA_FILE, "w") as f:
         json.dump(all_data, f, indent=2)
 
-    return jsonify({"message": f"{user} picked shift {shift_id}"})
+    return jsonify({"message": f"{day} {time} shift added successfully", "id": new_id})
 
-@app.route("/drop_shift", methods=["POST"])
-def drop_shift():
-    user_data = request.json
-    user = user_data.get("user")
-    shift_id = user_data.get("id")
+@app.route("/delete_shift", methods=["POST"])
+def delete_shift():
+    """Allow any employee to delete a shift"""
+    shift_data = request.json
+    shift_id = shift_data.get("id")
 
     all_data = {"tickets": [], "runners": [], "shifts": []}
     if os.path.exists(DATA_FILE):
@@ -971,17 +1121,18 @@ def drop_shift():
             else:
                 all_data.update(existing)
 
-    for s in all_data.get("shifts", []):
-        if s["id"] == shift_id and s["assigned_to"] == user:
-            s["assigned_to"] = None
+    # Find and remove the shift
+    original_length = len(all_data.get("shifts", []))
+    all_data["shifts"] = [s for s in all_data.get("shifts", []) if s["id"] != shift_id]
+    
+    if len(all_data["shifts"]) == original_length:
+        return jsonify({"error": "Shift not found"}), 404
 
     with open(DATA_FILE, "w") as f:
         json.dump(all_data, f, indent=2)
 
-    return jsonify({"message": f"{user} dropped shift {shift_id}"})
-
-
-def login_form():
+    return jsonify({"message": f"Shift #{shift_id} deleted successfully"})
+    '''def login_form():
     return '''
     <html><head><title>Admin Login</title></head>
     <body style="font-family:Segoe UI,Arial;background:#f8f9fa;text-align:center;padding:80px;">
@@ -995,6 +1146,10 @@ def login_form():
         <button onclick="window.location.href='/'">← Back</button>
     </body></html>
     '''
+
+
+
+
 
 # -----------------------------
 # Admin Login and Dashboard

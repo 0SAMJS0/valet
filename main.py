@@ -471,7 +471,7 @@ function startScanner() {
     )
 
 #ai detection
-@app.route("/analyze_damage", methods=["POST"])
+"""@app.route("/analyze_damage", methods=["POST"])
 def analyze_damage():
     """Analyze uploaded image for damage using AI"""
     file = request.files.get("image")
@@ -495,7 +495,7 @@ def analyze_damage():
             "image_url": f"/{image_path}",
             "has_damage": False
         })
-
+"""
 
 #-----------------------------
 # Runner Clock-In Portal (Separate Page)

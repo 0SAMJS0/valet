@@ -1,15 +1,12 @@
-#fix and give me the complete code dont change anything besides adding the things I told you to do
-
 from flask import Flask, render_template_string, request, redirect, jsonify, session, send_from_directory
 import json, os, datetime, base64, qrcode
 from io import BytesIO
-from damage_detector import detect_damage
+# from damage_detector import detect_damage  # ← COMMENTED OUT
 import vonage
 from flask import Flask
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, render_template_string, request, redirect, jsonify, session, send_from_directory, url_for
 from functools import wraps
-
 
 
 app = Flask(__name__)
@@ -271,7 +268,7 @@ def index():
 
             <div class="top-buttons">
     <button class="clockin-btn" onclick="window.location.href='/runner_clockin'">👷 Runner Clock-In Portal</button>
-    <button <button class="checkout-btn" onclick="document.getElementById('quickCheckout').style.display='block'">🚗 Quick Checkout</button>
+    <button class="checkout-btn" onclick="document.getElementById('quickCheckout').style.display='block'">🚗 Quick Checkout</button>
 
     <button class="checkout-btn" style="background:#16a085" onclick="window.location.href='/shift_portal'">📋 Shift Portal</button>
     <button class="checkout-btn" style="background:#2980b9" onclick="window.location.href='/announcement_page'">📢 Announcements</button>
@@ -471,31 +468,7 @@ function startScanner() {
     )
 
 #ai detection
-"""@app.route("/analyze_damage", methods=["POST"])
-def analyze_damage():
-    """Analyze uploaded image for damage using AI"""
-    file = request.files.get("image")
-    if not file:
-        return jsonify({"error": "No file uploaded"}), 400
 
-    image_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(image_path)
-
-    detected_path, has_damage = detect_damage(image_path)
-
-    if has_damage:
-        return jsonify({
-            "message": "🚨 DAMAGE DETECTED on this image!",
-            "image_url": f"/{detected_path}",
-            "has_damage": True
-        })
-    else:
-        return jsonify({
-            "message": "✅ No damage detected on this image.",
-            "image_url": f"/{image_path}",
-            "has_damage": False
-        })
-"""
 
 #-----------------------------
 # Runner Clock-In Portal (Separate Page)

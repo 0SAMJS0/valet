@@ -106,20 +106,36 @@ def generate_qr_code(ticket_id):
     qr_path = os.path.join(QRCODE_FOLDER, f"qr_{ticket_id}.png")
     img.save(qr_path)
     return qr_path
-
 # ===================== DETECTION =====================
 def detect_with_roboflow(img_path):
     """
     Hosted API path first; otherwise fallback to YOLO if available.
     Returns: {is_car, damage, location[], severity, boxes[], version}
     """
+    # --- helpers for post-processing ---
+    def _area(b): return max(0, (b["x2"] - b["x1"])) * max(0, (b["y2"] - b["y1"]))
+    def _iou(a, b):
+        x1 = max(a["x1"], b["x1"]); y1 = max(a["y1"], b["y1"])
+        x2 = min(a["x2"], b["x2"]); y2 = min(a["y2"], b["y2"])
+        inter = max(0, x2 - x1) * max(0, y2 - y1)
+        ua = _area(a) + _area(b) - inter + 1e-9
+        return inter / ua
+
+    # thresholds (tune if needed)
+    HARD_MIN_AREA = 800      # pixels; try 500–2000 depending on image size
+    NMS_IOU       = 0.45     # suppress near-duplicates
+
     if RF_ENABLED:
         try:
             if not os.path.isfile(img_path):
                 raise RuntimeError(f"Cannot read image: {img_path}")
 
             url = f"https://detect.roboflow.com/{RF_MODEL_ID}"
-            params = {"api_key": RF_API_KEY, "confidence": 0.2, "overlap": 0.5}
+            params = {
+                "api_key": RF_API_KEY,
+                "confidence": 0.4,   # raised from 0.2 to reduce noise
+                "overlap": 0.5
+            }
 
             # Downscale and send compressed JPEG bytes to avoid 413 and speed up
             filename, fileobj, mimetype = prepare_image_for_api(img_path)
@@ -145,25 +161,37 @@ def detect_with_roboflow(img_path):
                     h, w = img.shape[:2]
 
             boxes, locations = [], set()
-            damage_found = False
             for p in preds:
                 x, y, ww, hh = p["x"], p["y"], p["width"], p["height"]
                 x1, y1 = int(x - ww/2), int(y - hh/2)
                 x2, y2 = int(x + ww/2), int(y + hh/2)
                 label = str(p.get("class", "damage")).lower()
-                conf = float(p.get("confidence", 0.0))
-                damage_found = True
+                conf  = float(p.get("confidence", 0.0))
 
                 if h and w:
+                    # rough location
                     if y < h/3: locations.add("front")
                     elif y > 2*h/3: locations.add("rear")
                     if x < w/3 or x > 2*w/3: locations.add("side")
 
-                boxes.append({"x1":x1,"y1":y1,"x2":x2,"y2":y2,"label":label,"score":round(conf,2)})
+                boxes.append({
+                    "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+                    "label": label, "score": round(conf, 2)
+                })
 
-            is_car = True if boxes else False
+            # --- POST-PROCESS: tiny box filter + NMS ---
+            boxes = [b for b in boxes if _area(b) >= HARD_MIN_AREA]
+            boxes = sorted(boxes, key=lambda b: b["score"], reverse=True)
+            keep = []
+            for b in boxes:
+                if all(_iou(b, k) < NMS_IOU for k in keep):
+                    keep.append(b)
+            boxes = keep
 
-            # per-image severity unused for final; compute at ticket level
+            damage_found = len(boxes) > 0
+            is_car = bool(damage_found)  # treat any detection as car context
+
+            # per-image severity (final severity is computed at ticket level)
             if damage_found:
                 n = len(boxes)
                 severity = "severe" if n >= 4 else "moderate" if n >= 2 else "minor"
@@ -185,7 +213,10 @@ def detect_with_roboflow(img_path):
     # YOLO fallback
     if not YOLO_ENABLED or yolo_model is None:
         print(f"⚠️  Skipping detection for {img_path} - no Roboflow and YOLOv8 not available")
-        return {"is_car": True, "damage": False, "severity": "none", "location": [], "boxes": [], "version": "disabled"}
+        return {
+            "is_car": True, "damage": False, "severity": "none",
+            "location": [], "boxes": [], "version": "disabled"
+        }
 
     try:
         results = yolo_model(img_path, conf=0.25, verbose=False)
@@ -193,7 +224,6 @@ def detect_with_roboflow(img_path):
         car_keywords    = ['car','vehicle','automobile','sedan','suv','truck']
 
         is_car = False
-        damage_found = False
         locations = set()
         boxes = []
 
@@ -205,25 +235,46 @@ def detect_with_roboflow(img_path):
                 label = result.names[cls_id].lower()
                 if any(kw in label for kw in car_keywords): is_car = True
                 if any(kw in label for kw in damage_keywords):
-                    damage_found = True
                     cx, cy = (x1+x2)/2, (y1+y2)/2
                     if cy < img_height/3: locations.add("front")
                     elif cy > 2*img_height/3: locations.add("rear")
                     if cx < img_width/3 or cx > 2*img_width/3: locations.add("side")
-                    boxes.append({"x1":x1,"y1":y1,"x2":x2,"y2":y2,"label":label,"score":round(conf,2)})
+                    boxes.append({
+                        "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+                        "label": label, "score": round(conf, 2)
+                    })
 
-        if damage_found and not is_car: is_car = True
-        severity = "none"
+        # --- POST-PROCESS: tiny box filter + NMS ---
+        boxes = [b for b in boxes if _area(b) >= HARD_MIN_AREA]
+        boxes = sorted(boxes, key=lambda b: b["score"], reverse=True)
+        keep = []
+        for b in boxes:
+            if all(_iou(b, k) < NMS_IOU for k in keep):
+                keep.append(b)
+        boxes = keep
+
+        damage_found = len(boxes) > 0
+        if damage_found and not is_car:
+            is_car = True
+
         if damage_found:
             n = len(boxes)
             severity = "severe" if n >= 4 else "moderate" if n >= 2 else "minor"
+        else:
+            severity = "none"
 
-        return {"is_car": is_car, "damage": damage_found, "location": sorted(list(locations)), "severity": severity,
-                "boxes": boxes, "version": f"yolov8:{os.getenv('YOLO_MODEL_PATH','yolov8n.pt')}"}
+        return {
+            "is_car": is_car, "damage": damage_found,
+            "location": sorted(list(locations)), "severity": severity,
+            "boxes": boxes, "version": f"yolov8:{os.getenv('YOLO_MODEL_PATH','yolov8n.pt')}"
+        }
 
     except Exception as e:
         print(f"❌ YOLOv8 error: {e}")
-        return {"is_car": True, "damage": False, "severity": "none", "location": [], "boxes": [], "version": "error"}
+        return {
+            "is_car": True, "damage": False, "severity": "none",
+            "location": [], "boxes": [], "version": "error"
+        }
 
 # ===================== OPTIONAL: VONAGE SMS =====================
 SMS_ENABLED = False

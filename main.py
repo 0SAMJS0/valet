@@ -672,105 +672,243 @@ LOGIN_HTML = '''<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login - Valet Management System</title>
+    <title>Admin Login - Valet Operations System</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-page: #0b1220;
+            --bg-surface: #020617;
+            --accent: #b30000;
+            --accent-soft: #e11d48;
+            --border-subtle: rgba(148, 163, 184, 0.35);
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
+            --input-bg: #020617;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(239, 68, 68, 0.25), transparent 55%),
+                radial-gradient(circle at bottom, rgba(59, 130, 246, 0.3), transparent 55%),
+                linear-gradient(135deg, #020617, #020617 40%, #020617);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 24px;
         }
-        .login-container {
-            background: white;
-            padding: 50px 60px;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+
+        .login-shell {
             width: 100%;
             max-width: 420px;
+            position: relative;
         }
-        h2 {
-            color: #2c3e50;
-            margin-bottom: 30px;
-            text-align: center;
-            font-size: 28px;
-            font-weight: 600;
+
+        .glow {
+            position: absolute;
+            inset: -40px;
+            background:
+                radial-gradient(circle at 0 0, rgba(248, 250, 252, 0.06), transparent 55%),
+                radial-gradient(circle at 100% 100%, rgba(248, 250, 252, 0.04), transparent 55%);
+            filter: blur(1px);
+            opacity: 0.9;
         }
-        .form-group {
+
+        .login-container {
+            position: relative;
+            background: radial-gradient(circle at top, #020617, #020617 45%, #020617);
+            border-radius: 18px;
+            padding: 40px 36px 32px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow:
+                0 24px 60px rgba(15, 23, 42, 0.95),
+                0 0 0 1px rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(22px);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #9ca3af;
             margin-bottom: 20px;
         }
+
+        .badge-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #22c55e, #16a34a);
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.8);
+        }
+
+        h2 {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #f9fafb;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 26px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
         label {
             display: block;
             margin-bottom: 8px;
-            color: #555;
+            color: #cbd5f5;
             font-weight: 500;
-            font-size: 14px;
+            font-size: 13px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
         }
-        input[type="text"], input[type="password"] {
+
+        .field-shell {
+            position: relative;
+        }
+
+        .field-shell::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            background: linear-gradient(135deg, rgba(148, 163, 184, 0.1), transparent);
+            opacity: 0.8;
+            pointer-events: none;
+        }
+
+        input[type="text"],
+        input[type="password"] {
             width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 15px;
-            transition: border-color 0.3s;
-        }
-        input[type="text"]:focus, input[type="password"]:focus {
+            padding: 11px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border-subtle);
+            background: var(--input-bg);
+            color: var(--text-main);
+            font-size: 14px;
             outline: none;
-            border-color: #667eea;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+            position: relative;
+            z-index: 1;
         }
+
+        input::placeholder {
+            color: #6b7280;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: var(--accent-soft);
+            box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.55), 0 16px 40px rgba(15, 23, 42, 0.95);
+            background: #020617;
+        }
+
         button[type="submit"] {
             width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            margin-top: 18px;
+            padding: 12px 16px;
+            border-radius: 999px;
             border: none;
-            border-radius: 6px;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #f9fafb;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-top: 10px;
+            background: radial-gradient(circle at 0 0, #f97316, transparent 55%),
+                        linear-gradient(135deg, #b30000, #e11d48);
+            box-shadow:
+                0 18px 35px rgba(248, 113, 113, 0.45),
+                0 0 0 1px rgba(15, 23, 42, 0.9);
+            transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
         }
+
         button[type="submit"]:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            transform: translateY(-1px);
+            box-shadow:
+                0 22px 45px rgba(248, 113, 113, 0.6),
+                0 0 0 1px rgba(15, 23, 42, 1);
+            filter: brightness(1.02);
         }
+
         .back-btn {
             width: 100%;
-            padding: 12px;
-            background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
+            margin-top: 16px;
+            padding: 11px 16px;
+            border-radius: 999px;
+            background: transparent;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
             cursor: pointer;
-            margin-top: 15px;
-            transition: all 0.3s;
+            transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
         }
+
         .back-btn:hover {
-            background: #667eea;
-            color: white;
+            background: rgba(15, 23, 42, 0.95);
+            color: #e5e7eb;
+            border-color: rgba(148, 163, 184, 0.95);
+            transform: translateY(-0.5px);
+        }
+
+        .hint {
+            margin-top: 14px;
+            font-size: 11px;
+            color: #6b7280;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <h2>Administrator Login</h2>
-        <form method="POST">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" required autofocus>
+    <div class="login-shell">
+        <div class="glow"></div>
+        <div class="login-container">
+            <div class="badge">
+                <span class="badge-dot"></span>
+                Secure Administrator Access
             </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <button type="submit">Sign In</button>
-        </form>
-        <button class="back-btn" onclick="location.href='/'">Back to Dashboard</button>
+            <h2>Admin Console</h2>
+            <p class="subtitle">Sign in to manage valet operations, runners, and system activity.</p>
+            <form method="POST">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <div class="field-shell">
+                        <input type="text" id="username" name="username" required autofocus placeholder="Enter your username">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="field-shell">
+                        <input type="password" id="password" name="password" required placeholder="Enter your password">
+                    </div>
+                </div>
+                <button type="submit">Sign In</button>
+            </form>
+            <button class="back-btn" onclick="location.href='/'">Back to Dashboard</button>
+            <div class="hint">Access is restricted to authorized personnel only.</div>
+        </div>
     </div>
 </body>
 </html>'''
@@ -780,110 +918,223 @@ ADMIN_HTML = '''<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - Valet Management System</title>
+    <title>Admin Panel - Valet Operations System</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-page: #0b1220;
+            --bg-main: #020617;
+            --surface: #020617;
+            --surface-soft: #020617;
+            --border-subtle: rgba(148, 163, 184, 0.45);
+            --accent: #b30000;
+            --accent-soft: #e11d48;
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
-            padding: 40px 20px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(239, 68, 68, 0.15), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.18), transparent 55%),
+                linear-gradient(135deg, #020617, #020617 45%, #020617);
+            color: var(--text-main);
+            padding: 36px 16px 40px;
         }
+
         .container {
-            max-width: 900px;
+            max-width: 980px;
             margin: 0 auto;
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            background: radial-gradient(circle at top, #020617, #020617 45%, #020617);
+            border-radius: 20px;
+            padding: 30px 28px 28px;
+            border: 1px solid var(--border-subtle);
+            box-shadow:
+                0 24px 60px rgba(15, 23, 42, 0.9),
+                0 0 0 1px rgba(15, 23, 42, 1);
+            backdrop-filter: blur(24px);
         }
-        h2 {
-            color: #2c3e50;
-            margin-bottom: 30px;
-            font-size: 32px;
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .title-block h2 {
+            font-size: 24px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
             font-weight: 600;
+            color: #f9fafb;
+            margin-bottom: 6px;
         }
+
+        .title-block p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .tag {
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.65);
+            font-size: 11px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: #9ca3af;
+        }
+
         h3 {
-            color: #34495e;
-            margin: 30px 0 20px 0;
-            font-size: 20px;
-            font-weight: 600;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #3498db;
+            color: #e5e7eb;
+            font-size: 15px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            margin: 26px 0 10px;
         }
+
+        .section-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .card {
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 14px;
+            padding: 20px 18px 18px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+        }
+
         textarea {
             width: 100%;
-            padding: 14px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 15px;
+            padding: 14px 14px;
+            background: #020617;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.55);
+            font-size: 13px;
             font-family: inherit;
+            color: var(--text-main);
             resize: vertical;
-            transition: border-color 0.3s;
-        }
-        textarea:focus {
+            min-height: 120px;
             outline: none;
-            border-color: #3498db;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
         }
-        button {
-            padding: 12px 28px;
-            border: none;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin: 10px 5px 0 0;
+
+        textarea::placeholder {
+            color: #6b7280;
         }
-        button[type="submit"] {
-            background: #3498db;
-            color: white;
+
+        textarea:focus {
+            border-color: var(--accent-soft);
+            box-shadow:
+                0 0 0 1px rgba(248, 113, 113, 0.6),
+                0 18px 40px rgba(15, 23, 42, 1);
+            background: #020617;
         }
-        button[type="submit"]:hover {
-            background: #2980b9;
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-        }
-        .btn-secondary {
-            background: #95a5a6;
-            color: white;
-        }
-        .btn-secondary:hover {
-            background: #7f8c8d;
-        }
-        .btn-logout {
-            background: #e74c3c;
-            color: white;
-        }
-        .btn-logout:hover {
-            background: #c0392b;
-        }
-        hr {
-            margin: 30px 0;
-            border: none;
-            border-top: 1px solid #e0e0e0;
-        }
+
         .button-group {
-            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border-radius: 999px;
+            border: none;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+        }
+
+        button[type="submit"] {
+            background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+            color: #f9fafb;
+            box-shadow: 0 16px 32px rgba(248, 113, 113, 0.5);
+        }
+
+        button[type="submit"]:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 20px 40px rgba(248, 113, 113, 0.65);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            color: #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        .btn-logout {
+            background: #ef4444;
+            color: #f9fafb;
+            box-shadow: 0 16px 30px rgba(239, 68, 68, 0.32);
+        }
+
+        .btn-logout:hover {
+            background: #dc2626;
+            box-shadow: 0 20px 36px rgba(239, 68, 68, 0.45);
+        }
+
+        hr {
+            margin: 26px 0 22px;
+            border: none;
+            border-top: 1px solid rgba(148, 163, 184, 0.35);
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 24px 18px 20px;
+            }
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Administration Panel</h2>
-        
-        <h3>Post System Announcement</h3>
-        <form method="POST" action="/admin_announcement">
-            <textarea name="message" rows="4" placeholder="Enter announcement message..." required></textarea>
-            <div class="button-group">
-                <button type="submit">Publish Announcement</button>
+        <header class="header">
+            <div class="title-block">
+                <h2>Administration Panel</h2>
+                <p>Control announcements and access across the valet operations system.</p>
             </div>
-        </form>
-        
+            <div class="tag">System Control</div>
+        </header>
+
+        <section>
+            <h3>System Announcement</h3>
+            <p class="section-label">Publish a message to be displayed in the announcements portal for valet staff.</p>
+            <div class="card">
+                <form method="POST" action="/admin_announcement">
+                    <textarea name="message" rows="4" placeholder="Enter announcement message, schedule changes, or operational updates." required></textarea>
+                    <div class="button-group">
+                        <button type="submit">Publish Announcement</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
         <hr>
-        
-        <div class="button-group">
+
+        <section class="button-group">
             <button class="btn-secondary" onclick="location.href='/'">Return to Dashboard</button>
             <button class="btn-logout" onclick="location.href='/admin_logout'">Logout</button>
-        </div>
+        </section>
     </div>
 </body>
 </html>'''
@@ -893,58 +1144,120 @@ ANNOUNCEMENT_HTML = '''<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Announcements - Valet Management System</title>
+    <title>Announcements - Valet Operations System</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-page: #0b1220;
+            --surface: #020617;
+            --border-subtle: rgba(148, 163, 184, 0.45);
+            --accent: #b30000;
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
-            padding: 40px 20px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(239, 68, 68, 0.2), transparent 55%),
+                radial-gradient(circle at bottom, rgba(59, 130, 246, 0.18), transparent 55%),
+                linear-gradient(135deg, #020617, #020617 50%, #020617);
+            color: var(--text-main);
+            padding: 36px 16px 40px;
         }
+
         .container {
-            max-width: 800px;
+            max-width: 780px;
             margin: 0 auto;
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            background: radial-gradient(circle at top, #020617, #020617 50%, #020617);
+            border-radius: 20px;
+            padding: 30px 26px 24px;
+            border: 1px solid var(--border-subtle);
+            box-shadow:
+                0 24px 60px rgba(15, 23, 42, 0.9),
+                0 0 0 1px rgba(15, 23, 42, 1);
+            backdrop-filter: blur(24px);
         }
+
         h2 {
-            color: #2c3e50;
-            margin-bottom: 30px;
-            font-size: 32px;
+            font-size: 22px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
             font-weight: 600;
+            margin-bottom: 8px;
         }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
         #msg {
-            font-size: 18px;
-            line-height: 1.6;
-            color: #34495e;
-            background: #ecf0f1;
-            padding: 20px;
-            border-radius: 6px;
-            border-left: 4px solid #3498db;
-            min-height: 60px;
-        }
-        button {
-            padding: 12px 28px;
-            background: #95a5a6;
-            color: white;
-            border: none;
-            border-radius: 6px;
             font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 25px;
-            transition: all 0.3s;
+            line-height: 1.7;
+            color: #e5e7eb;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 20px 18px;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            min-height: 70px;
         }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.65);
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #22c55e;
+            box-shadow: 0 0 14px rgba(34, 197, 94, 0.9);
+        }
+
+        button {
+            margin-top: 24px;
+            padding: 10px 22px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            background: transparent;
+            color: #e5e7eb;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+        }
+
         button:hover {
-            background: #7f8c8d;
+            background: rgba(15, 23, 42, 0.95);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.9);
+            transform: translateY(-1px);
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>System Announcements</h2>
+        <p class="subtitle">Operational updates, shift changes, and important notices for valet staff.</p>
+        <div class="status-pill">
+            <span class="status-dot"></span>
+            Live Message Feed
+        </div>
         <div id="msg">Loading announcement...</div>
         <button onclick="location.href='/'">Back to Dashboard</button>
     </div>
@@ -969,135 +1282,210 @@ RUNNER_PAGE_HTML = '''<!DOCTYPE html>
     <title>Runner Management - Valet Operations</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-page: #0b1220;
+            --surface: #020617;
+            --surface-alt: #020617;
+            --border-subtle: rgba(148, 163, 184, 0.45);
+            --accent: #b30000;
+            --accent-soft: #e11d48;
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
-            padding: 40px 20px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(239, 68, 68, 0.16), transparent 55%),
+                radial-gradient(circle at bottom, rgba(37, 99, 235, 0.16), transparent 55%),
+                linear-gradient(135deg, #020617, #020617 50%, #020617);
+            color: var(--text-main);
+            padding: 32px 16px 40px;
         }
+
         .container {
-            max-width: 900px;
+            max-width: 960px;
             margin: 0 auto;
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            background: radial-gradient(circle at top, #020617, #020617 45%, #020617);
+            border-radius: 20px;
+            padding: 26px 24px 24px;
+            border: 1px solid var(--border-subtle);
+            box-shadow:
+                0 24px 56px rgba(15, 23, 42, 0.95),
+                0 0 0 1px rgba(15, 23, 42, 1);
+            backdrop-filter: blur(24px);
         }
+
         h1 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-            font-size: 32px;
+            font-size: 22px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
             font-weight: 600;
+            margin-bottom: 6px;
         }
+
         .subtitle {
-            color: #7f8c8d;
-            margin-bottom: 35px;
-            font-size: 16px;
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-bottom: 22px;
         }
+
         .form-section {
-            background: #f8f9fa;
-            padding: 25px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            border: 1px solid #e0e0e0;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 18px 18px 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            margin-bottom: 24px;
         }
+
+        .form-section label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
         input[type="text"] {
             width: 100%;
-            padding: 14px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 15px;
-            margin-bottom: 15px;
-            transition: border-color 0.3s;
-        }
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #8e44ad;
-        }
-        button {
-            padding: 12px 28px;
-            border: none;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-right: 10px;
-        }
-        .btn-primary {
-            background: #8e44ad;
-            color: white;
-        }
-        .btn-primary:hover {
-            background: #732d91;
-            box-shadow: 0 4px 12px rgba(142, 68, 173, 0.3);
-        }
-        .btn-warning {
-            background: #e67e22;
-            color: white;
-            padding: 8px 18px;
+            padding: 11px 13px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            background: #020617;
+            color: var(--text-main);
             font-size: 14px;
+            outline: none;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+            margin-bottom: 10px;
         }
+
+        input[type="text"]::placeholder {
+            color: #6b7280;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-soft);
+            box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.65),
+                        0 16px 40px rgba(15, 23, 42, 1);
+            background: #020617;
+        }
+
+        button {
+            padding: 9px 20px;
+            border-radius: 999px;
+            border: none;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, color 0.16s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+            color: #f9fafb;
+            box-shadow: 0 16px 30px rgba(248, 113, 113, 0.45);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 20px 38px rgba(248, 113, 113, 0.6);
+        }
+
+        .btn-warning {
+            background: #f97316;
+            color: #f9fafb;
+            padding: 7px 16px;
+            font-size: 11px;
+            box-shadow: 0 10px 26px rgba(249, 115, 22, 0.45);
+        }
+
         .btn-warning:hover {
-            background: #d35400;
+            background: #ea580c;
+            box-shadow: 0 14px 32px rgba(249, 115, 22, 0.65);
         }
+
         .btn-back {
-            background: #e74c3c;
-            color: white;
+            background: transparent;
+            border: 1px solid rgba(148, 163, 184, 0.8);
+            color: #e5e7eb;
             margin-top: 20px;
         }
+
         .btn-back:hover {
-            background: #c0392b;
+            background: rgba(15, 23, 42, 0.95);
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.9);
+            transform: translateY(-1px);
         }
+
         h3 {
-            color: #34495e;
-            margin: 30px 0 20px 0;
-            font-size: 20px;
-            font-weight: 600;
+            color: #e5e7eb;
+            font-size: 14px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            margin: 16px 0 12px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #8e44ad;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.4);
         }
+
         .runner-item {
-            background: #ffffff;
-            padding: 18px;
-            margin: 12px 0;
-            border-radius: 6px;
-            border: 1px solid #e0e0e0;
-            border-left: 4px solid #8e44ad;
-            transition: box-shadow 0.3s;
+            background: rgba(15, 23, 42, 0.9);
+            padding: 16px 16px 14px;
+            margin: 10px 0;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
+
         .runner-item:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.95);
         }
+
         .runner-name {
             font-weight: 600;
-            color: #2c3e50;
-            font-size: 16px;
-            margin-bottom: 8px;
+            color: #f9fafb;
+            font-size: 15px;
         }
+
         .runner-details {
-            color: #7f8c8d;
-            font-size: 14px;
+            color: var(--text-muted);
+            font-size: 13px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
         }
+
         .no-data {
             text-align: center;
-            color: #95a5a6;
-            padding: 40px;
-            font-size: 15px;
+            color: var(--text-muted);
+            padding: 40px 10px 10px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 22px 18px 20px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Runner Management</h1>
-        <p class="subtitle">Clock in/out and track runner activity</p>
-        
+        <p class="subtitle">Clock runners in and out and view real-time activity on the lane.</p>
+
         <div class="form-section">
             <form action="/clockin" method="post">
-                <input type="text" name="runnerName" placeholder="Enter runner name" required autofocus>
+                <label for="runnerName">Runner Name</label>
+                <input type="text" id="runnerName" name="runnerName" placeholder="Enter runner name" required autofocus>
                 <button type="submit" class="btn-primary">Clock In</button>
             </form>
         </div>
-        
+
         <h3>Activity Log</h3>
         {% if runners %}
             {% for r in runners %}
@@ -1105,12 +1493,14 @@ RUNNER_PAGE_HTML = '''<!DOCTYPE html>
                 <div class="runner-name">{{ r.name }}</div>
                 {% if r.get('clockOutTime') %}
                     <div class="runner-details">
-                        Clock In: {{ r.clockInTime }} | Clock Out: {{ r.clockOutTime }} | Duration: {{ r.get('duration', 'N/A') }}
+                        <span>Clock In: {{ r.clockInTime }}</span>
+                        <span>Clock Out: {{ r.clockOutTime }}</span>
+                        <span>Duration: {{ r.get('duration', 'N/A') }}</span>
                     </div>
                 {% else %}
                     <div class="runner-details">
-                        Active since: {{ r.clockInTime }}
-                        <form action="/clockout" method="post" style="display:inline; margin-left:15px;">
+                        <span>Active since: {{ r.clockInTime }}</span>
+                        <form action="/clockout" method="post" style="display:inline;">
                             <input type="hidden" name="runnerName" value="{{ r.name }}">
                             <button type="submit" class="btn-warning">Clock Out</button>
                         </form>
@@ -1119,9 +1509,9 @@ RUNNER_PAGE_HTML = '''<!DOCTYPE html>
             </div>
             {% endfor %}
         {% else %}
-            <div class="no-data">No runner activity recorded yet</div>
+            <div class="no-data">No runner activity recorded yet.</div>
         {% endif %}
-        
+
         <button class="btn-back" onclick="location.href='/'">Back to Dashboard</button>
     </div>
 </body>
@@ -1135,208 +1525,350 @@ SHIFT_PORTAL_HTML = '''<!DOCTYPE html>
     <title>Shift Management - Valet Operations</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
-            padding: 40px 20px;
+
+        :root {
+            --bg-page: #0b1220;
+            --surface: #020617;
+            --border-subtle: rgba(148, 163, 184, 0.45);
+            --accent: #b30000;
+            --accent-soft: #e11d48;
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
         }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(239, 68, 68, 0.16), transparent 55%),
+                radial-gradient(circle at bottom, rgba(37, 99, 235, 0.16), transparent 55%),
+                linear-gradient(135deg, #020617, #020617 50%, #020617);
+            color: var(--text-main);
+            padding: 32px 16px 40px;
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
         }
+
+        .panel {
+            background: radial-gradient(circle at top, #020617, #020617 45%, #020617);
+            border-radius: 20px;
+            padding: 26px 24px 24px;
+            border: 1px solid var(--border-subtle);
+            box-shadow:
+                0 24px 56px rgba(15, 23, 42, 0.95),
+                0 0 0 1px rgba(15, 23, 42, 1);
+            backdrop-filter: blur(24px);
+        }
+
         h2 {
-            color: #2c3e50;
-            margin-bottom: 30px;
-            font-size: 32px;
-            font-weight: 600;
+            color: #f9fafb;
+            font-size: 22px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
         }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-bottom: 22px;
+        }
+
         .add-shift-section {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            margin-bottom: 30px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 18px 18px 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            margin-bottom: 22px;
         }
+
         h3 {
-            color: #34495e;
-            margin-bottom: 20px;
-            font-size: 20px;
-            font-weight: 600;
+            color: #e5e7eb;
+            font-size: 13px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
         }
+
         select {
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 15px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            font-size: 13px;
             margin-right: 10px;
             min-width: 160px;
-            background: white;
+            background: #020617;
+            color: var(--text-main);
             cursor: pointer;
-            transition: border-color 0.3s;
-        }
-        select:focus {
             outline: none;
-            border-color: #3498db;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
         }
+
+        select:focus {
+            border-color: var(--accent-soft);
+            box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.6),
+                        0 16px 32px rgba(15, 23, 42, 1);
+            background: #020617;
+        }
+
         button {
-            padding: 12px 28px;
+            padding: 9px 20px;
+            border-radius: 999px;
             border: none;
-            border-radius: 6px;
-            font-size: 15px;
+            font-size: 12px;
             font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, color 0.16s ease;
         }
+
         .btn-add {
-            background: #3498db;
-            color: white;
+            background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+            color: #f9fafb;
+            box-shadow: 0 16px 32px rgba(248, 113, 113, 0.5);
         }
+
         .btn-add:hover {
-            background: #2980b9;
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 20px 40px rgba(248, 113, 113, 0.65);
         }
+
         .btn-pick {
-            background: #27ae60;
-            color: white;
-            padding: 8px 18px;
-            font-size: 14px;
+            background: #22c55e;
+            color: #f9fafb;
+            padding: 7px 16px;
+            font-size: 11px;
+            box-shadow: 0 12px 30px rgba(34, 197, 94, 0.5);
         }
+
         .btn-pick:hover {
-            background: #229954;
+            background: #16a34a;
+            box-shadow: 0 16px 36px rgba(34, 197, 94, 0.65);
         }
+
         .btn-drop {
-            background: #e67e22;
-            color: white;
-            padding: 8px 18px;
-            font-size: 14px;
+            background: #f97316;
+            color: #f9fafb;
+            padding: 7px 16px;
+            font-size: 11px;
+            box-shadow: 0 12px 30px rgba(249, 115, 22, 0.45);
         }
+
         .btn-drop:hover {
-            background: #d35400;
+            background: #ea580c;
+            box-shadow: 0 16px 36px rgba(249, 115, 22, 0.65);
         }
+
         .btn-delete {
-            background: #e74c3c;
-            color: white;
-            padding: 8px 18px;
-            font-size: 14px;
+            background: #ef4444;
+            color: #f9fafb;
+            padding: 7px 16px;
+            font-size: 11px;
+            box-shadow: 0 12px 30px rgba(239, 68, 68, 0.45);
         }
+
         .btn-delete:hover {
-            background: #c0392b;
+            background: #dc2626;
+            box-shadow: 0 16px 36px rgba(239, 68, 68, 0.6);
         }
+
         .btn-back {
-            background: #2c3e50;
-            color: white;
-            margin-top: 25px;
+            background: transparent;
+            border: 1px solid rgba(148, 163, 184, 0.85);
+            color: #e5e7eb;
+            margin-top: 22px;
         }
+
         .btn-back:hover {
-            background: #1a252f;
+            background: rgba(15, 23, 42, 0.95);
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.95);
+            transform: translateY(-1px);
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            background: white;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.95);
+            border-radius: 16px;
             overflow: hidden;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            margin-top: 10px;
         }
+
         th, td {
-            padding: 16px;
+            padding: 12px 14px;
             text-align: left;
+            font-size: 13px;
         }
+
         th {
-            background: #b30000;
-            color: white;
+            background: linear-gradient(135deg, #b30000, #e11d48);
+            color: #f9fafb;
             font-weight: 600;
             text-transform: uppercase;
-            font-size: 13px;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.16em;
+            font-size: 11px;
         }
+
         td {
-            border-bottom: 1px solid #e0e0e0;
+            border-top: 1px solid rgba(30, 64, 175, 0.4);
         }
+
         tr:last-child td {
             border-bottom: none;
         }
+
         tr:hover {
-            background: #f8f9fa;
+            background: rgba(15, 23, 42, 0.9);
         }
+
         .shift-id {
             font-weight: 600;
-            color: #2c3e50;
+            color: #f9fafb;
         }
+
+        .available {
+            color: #6b7280;
+            font-style: italic;
+        }
+
         .no-shifts {
             text-align: center;
-            padding: 40px;
-            color: #95a5a6;
+            padding: 36px 10px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            table, thead, tbody, tr, th, td {
+                display: block;
+            }
+
+            thead {
+                display: none;
+            }
+
+            tr {
+                padding: 12px 14px;
+                border-bottom: 1px solid rgba(30, 64, 175, 0.4);
+            }
+
+            td {
+                padding: 4px 0;
+            }
+
+            td::before {
+                content: attr(data-label);
+                display: block;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.14em;
+                color: var(--text-muted);
+                margin-bottom: 2px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Shift Management</h2>
-        
-        <div class="add-shift-section">
-            <h3>Create New Shift</h3>
-            <select id="daySelect">
-                <option value="">Select Day</option>
-                <option>Monday</option>
-                <option>Tuesday</option>
-                <option>Wednesday</option>
-                <option>Thursday</option>
-                <option>Friday</option>
-                <option>Saturday</option>
-                <option>Sunday</option>
-            </select>
-            <select id="timeSelect">
-                <option value="">Select Time</option>
-                <option>6am-2pm</option>
-                <option>7am-3pm</option>
-                <option>8am-4pm</option>
-                <option>9am-5pm</option>
-                <option>2pm-10pm</option>
-            </select>
-            <button onclick="addShift()" class="btn-add">Add Shift</button>
+        <div class="panel">
+            <h2>Shift Management</h2>
+            <p class="subtitle">Create, assign, and manage valet shifts for the team.</p>
+
+            <div class="add-shift-section">
+                <h3>Create New Shift</h3>
+                <select id="daySelect">
+                    <option value="">Select Day</option>
+                    <option>Monday</option>
+                    <option>Tuesday</option>
+                    <option>Wednesday</option>
+                    <option>Thursday</option>
+                    <option>Friday</option>
+                    <option>Saturday</option>
+                    <option>Sunday</option>
+                </select>
+                <select id="timeSelect">
+                    <option value="">Select Time</option>
+                    <option>6am-2pm</option>
+                    <option>7am-3pm</option>
+                    <option>8am-4pm</option>
+                    <option>9am-5pm</option>
+                    <option>2pm-10pm</option>
+                </select>
+                <button onclick="addShift()" class="btn-add">Add Shift</button>
+            </div>
+
+            <div id="shiftTable"></div>
+
+            <button class="btn-back" onclick="location.href='/'">Back to Dashboard</button>
         </div>
-        
-        <div id="shiftTable"></div>
-        
-        <button class="btn-back" onclick="location.href='/'">Back to Dashboard</button>
     </div>
-    
+
     <script>
     async function loadShifts(){
         const res = await fetch("/shifts");
         const data = await res.json();
-        let html = "<table><thead><tr><th>Shift ID</th><th>Day</th><th>Time Slot</th><th>Assigned To</th><th>Actions</th></tr></thead><tbody>";
-        
+        let isMobile = window.innerWidth <= 768;
+        let html = "<table>";
+
+        if(!isMobile){
+            html += "<thead><tr><th>Shift ID</th><th>Day</th><th>Time Slot</th><th>Assigned To</th><th>Actions</th></tr></thead>";
+        }
+
+        html += "<tbody>";
+
         if(data.length === 0){
-            html += "<tr><td colspan='5' class='no-shifts'>No shifts scheduled</td></tr>";
+            if(!isMobile){
+                html += "<tr><td colspan='5' class='no-shifts'>No shifts scheduled.</td></tr>";
+            } else {
+                html += "<tr><td class='no-shifts'>No shifts scheduled.</td></tr>";
+            }
         } else {
             data.forEach(s => {
-                html += `<tr>
-                    <td class="shift-id">#${s.id}</td>
-                    <td>${s.day || ''}</td>
-                    <td>${s.time || ''}</td>
-                    <td>${s.assigned_to || '<span style="color:#95a5a6;">Available</span>'}</td>
-                    <td>
-                        ${s.assigned_to
-                            ? `<button class="btn-drop" onclick="drop(${s.id}, '${s.assigned_to}')">Unassign</button>`
-                            : `<button class="btn-pick" onclick="pick(${s.id})">Assign Shift</button>`
-                        }
-                        <button class="btn-delete" onclick="del(${s.id})">Delete</button>
-                    </td>
-                </tr>`;
+                if(!isMobile){
+                    html += `<tr>
+                        <td class="shift-id">#${s.id}</td>
+                        <td>${s.day || ""}</td>
+                        <td>${s.time || ""}</td>
+                        <td>${s.assigned_to || '<span class="available">Available</span>'}</td>
+                        <td>
+                            ${s.assigned_to
+                                ? `<button class="btn-drop" onclick="drop(${s.id}, '${s.assigned_to}')">Unassign</button>`
+                                : `<button class="btn-pick" onclick="pick(${s.id})">Assign Shift</button>`
+                            }
+                            <button class="btn-delete" onclick="del(${s.id})">Delete</button>
+                        </td>
+                    </tr>`;
+                } else {
+                    html += `<tr>
+                        <td class="shift-id" data-label="Shift">#${s.id}</td>
+                        <td data-label="Day">${s.day || ""}</td>
+                        <td data-label="Time">${s.time || ""}</td>
+                        <td data-label="Assigned">${s.assigned_to || '<span class="available">Available</span>'}</td>
+                        <td data-label="Actions">
+                            ${s.assigned_to
+                                ? `<button class="btn-drop" onclick="drop(${s.id}, '${s.assigned_to}')">Unassign</button>`
+                                : `<button class="btn-pick" onclick="pick(${s.id})">Assign</button>`
+                            }
+                            <button class="btn-delete" onclick="del(${s.id})">Delete</button>
+                        </td>
+                    </tr>`;
+                }
             });
         }
-        
+
         html += "</tbody></table>";
         document.getElementById("shiftTable").innerHTML = html;
     }
-    
+
     async function addShift(){
         const day = document.getElementById("daySelect").value;
         const time = document.getElementById("timeSelect").value;
         if(!day || !time){
-            alert("Please select both day and time");
+            alert("Please select both a day and time.");
             return;
         }
         await fetch("/add_shift", {
@@ -1346,9 +1878,9 @@ SHIFT_PORTAL_HTML = '''<!DOCTYPE html>
         });
         loadShifts();
     }
-    
+
     async function pick(id){
-        const user = prompt("Enter your name:");
+        const user = prompt("Enter name to assign this shift:");
         if(!user) return;
         await fetch("/pick_shift", {
             method: "POST",
@@ -1357,10 +1889,10 @@ SHIFT_PORTAL_HTML = '''<!DOCTYPE html>
         });
         loadShifts();
     }
-    
+
     async function drop(id, user){
         const u = prompt(`Enter name to confirm (must match: ${user}):`);
-        if(!u || u.toLowerCase() != user.toLowerCase()) return;
+        if(!u || u.toLowerCase() !== user.toLowerCase()) return;
         await fetch("/drop_shift", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
@@ -1368,9 +1900,9 @@ SHIFT_PORTAL_HTML = '''<!DOCTYPE html>
         });
         loadShifts();
     }
-    
+
     async function del(id){
-        if(!confirm("Are you sure you want to delete this shift?")) return;
+        if(!confirm("Delete this shift?")) return;
         await fetch("/delete_shift", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
@@ -1378,7 +1910,8 @@ SHIFT_PORTAL_HTML = '''<!DOCTYPE html>
         });
         loadShifts();
     }
-    
+
+    window.addEventListener("resize", loadShifts);
     loadShifts();
     </script>
 </body>
@@ -1394,55 +1927,143 @@ CALENDAR_HTML = '''<!DOCTYPE html>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
-            padding: 40px 20px;
+
+        :root {
+            --bg-page: #0b1220;
+            --surface: #020617;
+            --border-subtle: rgba(148, 163, 184, 0.45);
+            --accent: #b30000;
+            --accent-soft: #e11d48;
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
         }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(239, 68, 68, 0.16), transparent 55%),
+                radial-gradient(circle at bottom, rgba(37, 99, 235, 0.16), transparent 55%),
+                linear-gradient(135deg, #020617, #020617 50%, #020617);
+            color: var(--text-main);
+            padding: 32px 16px 40px;
+        }
+
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
         }
+
+        .panel {
+            background: radial-gradient(circle at top, #020617, #020617 45%, #020617);
+            border-radius: 20px;
+            padding: 24px 22px 22px;
+            border: 1px solid var(--border-subtle);
+            box-shadow:
+                0 24px 56px rgba(15, 23, 42, 0.95),
+                0 0 0 1px rgba(15, 23, 42, 1);
+            backdrop-filter: blur(24px);
+        }
+
         h2 {
-            color: #2c3e50;
-            margin-bottom: 30px;
-            font-size: 32px;
-            font-weight: 600;
+            color: #f9fafb;
+            font-size: 22px;
             text-align: center;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
         }
+
+        .subtitle {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
         #calendar {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            background: rgba(15, 23, 42, 0.95);
+            padding: 18px 16px;
+            border-radius: 16px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.6);
         }
-        button {
-            padding: 12px 28px;
-            background: #2c3e50;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 15px;
+
+        .fc-toolbar-title {
+            color: #e5e7eb;
             font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+
+        .fc-button {
+            border-radius: 999px !important;
+            padding: 5px 12px !important;
+            font-size: 11px !important;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            border: none !important;
+            background: #020617 !important;
+            color: #e5e7eb !important;
+            border: 1px solid rgba(148, 163, 184, 0.9) !important;
+        }
+
+        .fc-button-primary:not(:disabled):hover {
+            background: rgba(15, 23, 42, 0.95) !important;
+            border-color: rgba(248, 113, 113, 0.8) !important;
+        }
+
+        .fc-day-today {
+            background: rgba(248, 113, 113, 0.12) !important;
+        }
+
+        .fc-col-header-cell {
+            color: #9ca3af;
+            font-size: 11px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .fc-event {
+            background: linear-gradient(135deg, #b30000, #e11d48) !important;
+            border: none !important;
+            border-radius: 999px !important;
+            padding: 2px 6px !important;
+            font-size: 11px !important;
+        }
+
+        button.back-btn {
+            margin-top: 22px;
+            padding: 9px 22px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.85);
+            background: transparent;
+            color: #e5e7eb;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
             cursor: pointer;
-            margin-top: 25px;
-            transition: all 0.3s;
             display: block;
             margin-left: auto;
             margin-right: auto;
+            transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
         }
-        button:hover {
-            background: #1a252f;
+
+        button.back-btn:hover {
+            background: rgba(15, 23, 42, 0.95);
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.95);
+            transform: translateY(-1px);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Shift Calendar</h2>
-        <div id="calendar"></div>
-        <button onclick="location.href='/'">Back to Dashboard</button>
+        <div class="panel">
+            <h2>Shift Calendar</h2>
+            <p class="subtitle">Visual view of scheduled valet shifts across the month and week.</p>
+            <div id="calendar"></div>
+            <button class="back-btn" onclick="location.href='/'">Back to Dashboard</button>
+        </div>
     </div>
-    
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
@@ -1468,487 +2089,679 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
     <title>Valet Operations System - Moffitt Cancer Center</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
+        :root {
+            --bg-page: #020617;
+            --surface: #020617;
+            --surface-alt: #020617;
+            --accent: #b30000;
+            --accent-soft: #e11d48;
+            --accent-success: #22c55e;
+            --accent-info: #0ea5e9;
+            --border-subtle: rgba(148, 163, 184, 0.45);
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
-            color: #2c3e50;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(248, 113, 113, 0.22), transparent 55%),
+                radial-gradient(circle at bottom, rgba(37, 99, 235, 0.22), transparent 55%),
+                linear-gradient(135deg, #020617, #020617 50%, #020617);
+            color: var(--text-main);
         }
-        
+
         .header {
-            background: linear-gradient(135deg, #b30000 0%, #8b0000 100%);
-            color: white;
-            padding: 30px 40px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            position: relative;
+            background:
+                radial-gradient(circle at top left, rgba(248, 250, 252, 0.08), transparent 55%),
+                linear-gradient(135deg, #020617, #020617 60%, #020617);
+            padding: 22px 20px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+            box-shadow:
+                0 14px 40px rgba(15, 23, 42, 1),
+                0 1px 0 rgba(148, 163, 184, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 40;
         }
-        
+
         .header-content {
             max-width: 1400px;
             margin: 0 auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 18px;
         }
-        
+
+        .brand-block {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
         .header h1 {
-            font-size: 28px;
+            font-size: 20px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
             font-weight: 600;
-            margin-bottom: 6px;
         }
-        
+
         .header h2 {
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 400;
-            opacity: 0.95;
+            color: var(--text-muted);
         }
-        
+
+        .badge-tag {
+            margin-top: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            font-size: 11px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: radial-gradient(circle, #22c55e, #16a34a);
+            box-shadow: 0 0 14px rgba(34, 197, 94, 0.9);
+        }
+
         .admin-link {
-            background: rgba(255,255,255,0.15);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.95);
+            color: #f9fafb;
+            padding: 9px 18px;
+            border-radius: 999px;
             text-decoration: none;
             font-weight: 600;
-            font-size: 14px;
-            transition: all 0.3s;
-            border: 1px solid rgba(255,255,255,0.3);
+            font-size: 12px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            border: 1px solid rgba(148, 163, 184, 0.75);
+            box-shadow:
+                0 16px 40px rgba(15, 23, 42, 0.95),
+                0 0 0 1px rgba(15, 23, 42, 1);
+            transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, border-color 0.16s ease;
         }
-        
+
         .admin-link:hover {
-            background: rgba(255,255,255,0.25);
+            background: rgba(15, 23, 42, 1);
+            border-color: rgba(248, 113, 113, 0.85);
+            box-shadow:
+                0 20px 50px rgba(15, 23, 42, 1),
+                0 0 0 1px rgba(15, 23, 42, 1);
+            transform: translateY(-1px);
         }
-        
+
         .container {
             max-width: 1400px;
-            margin: 30px auto;
-            padding: 0 20px;
+            margin: 26px auto 40px;
+            padding: 0 20px 10px;
         }
-        
+
         .alert {
-            padding: 16px 20px;
-            margin-bottom: 25px;
-            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+            border-radius: 14px;
             font-weight: 500;
-            border-left: 4px solid;
+            border: 1px solid transparent;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
         }
-        
+
         .alert.success {
-            background: #d4edda;
-            color: #155724;
-            border-color: #28a745;
+            background: rgba(22, 163, 74, 0.12);
+            color: #bbf7d0;
+            border-color: rgba(74, 222, 128, 0.6);
         }
-        
+
         .alert.warning {
-            background: #fff3cd;
-            color: #856404;
-            border-color: #ffc107;
+            background: rgba(234, 179, 8, 0.14);
+            color: #facc15;
+            border-color: rgba(250, 204, 21, 0.7);
         }
-        
+
         .section {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            margin-bottom: 25px;
+            background: radial-gradient(circle at top, #020617, #020617 40%, #020617);
+            padding: 22px 20px 20px;
+            border-radius: 18px;
+            box-shadow:
+                0 24px 60px rgba(15, 23, 42, 0.98),
+                0 0 0 1px rgba(15, 23, 42, 1);
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            margin-bottom: 22px;
         }
-        
+
         .nav-buttons {
             display: flex;
-            gap: 12px;
             flex-wrap: wrap;
-            margin-bottom: 25px;
+            gap: 10px;
+            margin-bottom: 24px;
         }
-        
+
         .nav-buttons button {
-            padding: 12px 24px;
+            padding: 9px 18px;
             border: none;
-            border-radius: 6px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+        }
+
+        .btn-purple { background: #7c3aed; color: #f9fafb; box-shadow: 0 16px 32px rgba(124, 58, 237, 0.45); }
+        .btn-blue { background: #0ea5e9; color: #f9fafb; box-shadow: 0 16px 32px rgba(14, 165, 233, 0.45); }
+        .btn-orange { background: #f97316; color: #f9fafb; box-shadow: 0 16px 32px rgba(249, 115, 22, 0.45); }
+        .btn-teal { background: #22c55e; color: #f9fafb; box-shadow: 0 16px 32px rgba(34, 197, 94, 0.45); }
+
+        .nav-buttons button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 20px 44px rgba(15, 23, 42, 1);
+        }
+
+        h3 {
+            color: #f9fafb;
             font-size: 14px;
             font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
+            margin-bottom: 16px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.38);
         }
-        
-        .btn-purple { background: #8e44ad; color: white; }
-        .btn-purple:hover { background: #732d91; box-shadow: 0 4px 12px rgba(142,68,173,0.3); }
-        
-        .btn-blue { background: #3498db; color: white; }
-        .btn-blue:hover { background: #2980b9; box-shadow: 0 4px 12px rgba(52,152,219,0.3); }
-        
-        .btn-orange { background: #f39c12; color: white; }
-        .btn-orange:hover { background: #e67e22; box-shadow: 0 4px 12px rgba(243,156,18,0.3); }
-        
-        .btn-teal { background: #16a085; color: white; }
-        .btn-teal:hover { background: #138d75; box-shadow: 0 4px 12px rgba(22,160,133,0.3); }
-        
-        h3 {
-            color: #2c3e50;
-            font-size: 22px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 2px solid #b30000;
-        }
-        
+
         .form-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-            margin-bottom: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
         }
-        
+
         input[type="text"],
         input[type="tel"],
         input[type="file"] {
-            padding: 12px 14px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.3s;
+            padding: 11px 13px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            font-size: 13px;
+            background: #020617;
+            color: #e5e7eb;
+            outline: none;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
         }
-        
+
+        input::placeholder {
+            color: #6b7280;
+        }
+
         input[type="text"]:focus,
         input[type="tel"]:focus {
-            outline: none;
-            border-color: #27ae60;
+            border-color: var(--accent-soft);
+            box-shadow:
+                0 0 0 1px rgba(248, 113, 113, 0.6),
+                0 18px 40px rgba(15, 23, 42, 1);
+            background: #020617;
         }
-        
+
         label {
             display: block;
-            margin: 15px 0 8px 0;
-            font-weight: 600;
-            font-size: 14px;
-            color: #34495e;
+            margin: 12px 0 6px 0;
+            font-weight: 500;
+            font-size: 12px;
+            color: var(--text-muted);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
         }
-        
+
         button[type="submit"] {
-            padding: 12px 32px;
+            padding: 10px 26px;
+            border-radius: 999px;
             border: none;
-            border-radius: 6px;
-            font-size: 15px;
+            font-size: 12px;
             font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
             cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 15px;
+            transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+            margin-top: 14px;
         }
-        
+
         .btn-submit {
-            background: #27ae60;
-            color: white;
+            background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+            color: #f9fafb;
+            box-shadow: 0 18px 40px rgba(248, 113, 113, 0.6);
         }
-        
+
         .btn-submit:hover {
-            background: #229954;
-            box-shadow: 0 4px 12px rgba(39,174,96,0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 22px 50px rgba(248, 113, 113, 0.8);
         }
-        
+
         .checkout-form {
             display: flex;
-            gap: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
             align-items: flex-end;
         }
-        
+
         .checkout-form input {
-            flex: 0 0 250px;
+            min-width: 230px;
         }
-        
+
         .btn-checkout {
-            background: #3498db;
-            color: white;
-            padding: 12px 28px;
+            background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+            color: #f9fafb;
+            padding: 10px 26px;
+            border-radius: 999px;
             border: none;
-            border-radius: 6px;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
         }
-        
+
         .btn-checkout:hover {
-            background: #2980b9;
+            transform: translateY(-1px);
+            box-shadow: 0 22px 48px rgba(14, 165, 233, 0.7);
         }
-        
+
         .key-counter {
-            background: linear-gradient(135deg, #b30000 0%, #8b0000 100%);
-            color: white;
-            padding: 18px 28px;
-            border-radius: 8px;
+            background:
+                radial-gradient(circle at top left, rgba(248, 113, 113, 0.32), transparent 55%),
+                linear-gradient(135deg, #b30000, #e11d48);
+            color: #f9fafb;
+            padding: 14px 24px;
+            border-radius: 999px;
             font-weight: 600;
-            display: inline-block;
-            margin: 20px 0;
-            font-size: 18px;
-            box-shadow: 0 4px 12px rgba(179,0,0,0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin: 18px 0 6px;
+            font-size: 14px;
+            box-shadow:
+                0 22px 50px rgba(248, 113, 113, 0.7),
+                0 0 0 1px rgba(15, 23, 42, 1);
         }
-        
+
+        .key-counter span {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            opacity: 0.9;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
-            background: white;
+            margin-top: 16px;
+            background: rgba(15, 23, 42, 0.98);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(148, 163, 184, 0.55);
         }
-        
+
         th, td {
-            padding: 14px 12px;
+            padding: 10px 10px;
             text-align: left;
-            border-bottom: 1px solid #e0e0e0;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(30, 64, 175, 0.45);
         }
-        
+
         th {
-            background: #2c3e50;
-            color: white;
+            background: linear-gradient(135deg, #020617, #020617 60%, #020617);
+            color: #9ca3af;
             font-weight: 600;
             text-transform: uppercase;
-            font-size: 12px;
-            letter-spacing: 0.5px;
+            font-size: 11px;
+            letter-spacing: 0.18em;
         }
-        
+
         tr:hover {
-            background: #f8f9fa;
+            background: rgba(15, 23, 42, 0.95);
         }
-        
+
         .ticket-id {
-            background: #b30000;
-            color: white;
+            background: linear-gradient(135deg, #b30000, #e11d48);
+            color: #f9fafb;
             font-weight: 700;
             text-align: center;
-            padding: 8px;
-            border-radius: 4px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            display: inline-block;
+            font-size: 11px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
         }
-        
+
         .status-active {
-            color: #27ae60;
+            color: #22c55e;
             font-weight: 600;
+            font-size: 12px;
         }
-        
+
         .status-complete {
-            color: #95a5a6;
+            color: #6b7280;
             font-weight: 600;
+            font-size: 12px;
         }
-        
+
         .damage-badge {
             display: inline-block;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 11px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.16em;
         }
-        
+
         .damage-none {
-            background: #d4edda;
-            color: #155724;
+            background: rgba(34, 197, 94, 0.12);
+            color: #bbf7d0;
+            border: 1px solid rgba(34, 197, 94, 0.7);
         }
-        
+
         .damage-minor {
-            background: #fff3cd;
-            color: #856404;
+            background: rgba(250, 204, 21, 0.18);
+            color: #fef9c3;
+            border: 1px solid rgba(250, 204, 21, 0.8);
         }
-        
+
         .damage-moderate {
-            background: #ffc107;
-            color: #000;
+            background: rgba(248, 250, 252, 0.08);
+            color: #fee2e2;
+            border: 1px solid rgba(248, 250, 252, 0.25);
         }
-        
+
         .damage-severe {
-            background: #f8d7da;
-            color: #721c24;
+            background: rgba(248, 113, 113, 0.18);
+            color: #fee2e2;
+            border: 1px solid rgba(248, 113, 113, 0.85);
         }
-        
-        .action-buttons {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-        
-        .action-buttons button,
-        .action-buttons select {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        
-        .action-buttons select {
-            border: 2px solid #e0e0e0;
-            background: white;
-        }
-        
-        .btn-assign {
-            background: #8e44ad;
-            color: white;
-        }
-        
-        .btn-ready {
-            background: #f39c12;
-            color: white;
-        }
-        
-        .btn-checkout-action {
-            background: #3498db;
-            color: white;
-        }
-        
-        .btn-delete {
-            background: #e74c3c;
-            color: white;
-        }
-        
+
         .btn-qr {
-            background: #16a085;
-            color: white;
+            background: rgba(15, 23, 42, 0.95);
+            color: #e5e7eb;
             text-decoration: none;
             display: inline-block;
             padding: 6px 12px;
-            border-radius: 4px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, border-color 0.16s ease;
         }
-        
+
+        .btn-qr:hover {
+            background: rgba(15, 23, 42, 1);
+            border-color: rgba(56, 189, 248, 0.9);
+            box-shadow: 0 16px 36px rgba(8, 47, 73, 0.9);
+            transform: translateY(-1px);
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .action-buttons button,
+        .action-buttons select {
+            font-size: 11px;
+        }
+
+        .action-buttons select {
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            padding: 5px 8px;
+            background: #020617;
+            color: #e5e7eb;
+            outline: none;
+        }
+
+        .btn-assign {
+            background: #7c3aed;
+            color: #f9fafb;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: none;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .btn-ready {
+            background: #f97316;
+            color: #f9fafb;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: none;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .btn-checkout-action {
+            background: #0ea5e9;
+            color: #f9fafb;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: none;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .btn-delete {
+            background: #ef4444;
+            color: #f9fafb;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: none;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
         .pagination {
             text-align: center;
-            margin-top: 30px;
-            padding-top: 25px;
-            border-top: 1px solid #e0e0e0;
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(148, 163, 184, 0.38);
         }
-        
+
         .pagination button {
-            background: #b30000;
-            color: white;
-            border: none;
-            padding: 10px 18px;
-            margin: 3px;
-            border-radius: 6px;
+            background: #020617;
+            color: #e5e7eb;
+            border: 1px solid rgba(148, 163, 184, 0.8);
+            padding: 7px 14px;
+            margin: 2px;
+            border-radius: 999px;
             cursor: pointer;
+            font-size: 11px;
             font-weight: 600;
-            transition: all 0.3s;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, border-color 0.16s ease;
         }
-        
+
         .pagination button:hover {
-            background: #8b0000;
+            background: rgba(15, 23, 42, 0.98);
+            border-color: rgba(248, 113, 113, 0.85);
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 1);
+            transform: translateY(-1px);
         }
-        
+
         .pagination .current {
-            color: #b30000;
+            color: #f97316;
             font-weight: 700;
-            margin: 0 8px;
+            margin: 0 4px;
+            font-size: 12px;
         }
-        
+
         .modal {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.85);
-            z-index: 9999;
+            background: rgba(15, 23, 42, 0.96);
+            z-index: 50;
             overflow-y: auto;
         }
-        
+
         .modal-content {
-            max-width: 1200px;
-            margin: 40px auto;
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
+            max-width: 1100px;
+            margin: 40px auto 60px;
+            background: radial-gradient(circle at top, #020617, #020617 45%, #020617);
+            border-radius: 18px;
+            padding: 24px 22px 22px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            box-shadow:
+                0 30px 80px rgba(15, 23, 42, 1),
+                0 0 0 1px rgba(15, 23, 42, 1);
             position: relative;
         }
-        
+
         .modal-close {
             position: absolute;
-            right: 20px;
-            top: 20px;
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
+            right: 26px;
+            top: 22px;
+            background: transparent;
+            color: #e5e7eb;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            padding: 6px 14px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 11px;
             font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
         }
-        
+
         .modal-close:hover {
-            background: #c0392b;
+            background: rgba(15, 23, 42, 0.98);
+            transform: translateY(-1px);
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 1);
         }
-        
+
+        .modal h3 {
+            margin-bottom: 12px;
+        }
+
         .gallery-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 14px;
+            margin-top: 16px;
         }
-        
+
         .gallery-item {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
+            border-radius: 14px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            background: #020617;
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.95);
         }
-        
+
         .gallery-item img {
             width: 100%;
             display: block;
-            max-height: 450px;
+            max-height: 420px;
             object-fit: contain;
             background: #000;
         }
-        
+
         .no-data {
             text-align: center;
-            padding: 60px 20px;
-            color: #95a5a6;
-            font-size: 16px;
+            padding: 50px 12px 12px;
+            color: var(--text-muted);
+            font-size: 14px;
         }
-        
+
         hr {
-            margin: 30px 0;
+            margin: 24px 0 20px;
             border: none;
-            border-top: 1px solid #e0e0e0;
+            border-top: 1px solid rgba(148, 163, 184, 0.35);
+        }
+
+        @media (max-width: 900px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .section {
+                padding: 18px 16px 16px;
+            }
+            th, td {
+                font-size: 11px;
+                padding: 8px 6px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="header-content">
-            <div>
+            <div class="brand-block">
                 <h1>Valet Operations System</h1>
-                <h2>Moffitt Cancer Center — Red Ramp Valet</h2>
+                <h2>Moffitt Cancer Center · Red Ramp Valet</h2>
+                <div class="badge-tag">
+                    <span class="badge-dot"></span>
+                    Live Lane Control
+                </div>
             </div>
             <a href="/admin_login" class="admin-link">Administrator</a>
         </div>
     </div>
-    
+
     <div class="container">
         {% if message %}
         <div class="alert {{message_type}}">{{message}}</div>
         {% endif %}
-        
+
         <div class="nav-buttons">
             <button class="btn-purple" onclick="location.href='/runner_clockin'">Runner Management</button>
             <button class="btn-blue" onclick="location.href='/shift_portal'">Shift Management</button>
             <button class="btn-orange" onclick="location.href='/calendar'">Shift Calendar</button>
             <button class="btn-teal" onclick="location.href='/announcement_page'">Announcements</button>
         </div>
-        
+
         <div class="section">
             <h3>Vehicle Check-In</h3>
             <form action="/checkin" method="post" enctype="multipart/form-data">
                 <div class="form-row">
-                    <input type="text" name="licensePlate" placeholder="License Plate" required>
-                    <input type="text" name="customerName" placeholder="Customer Name" required>
+                    <input type="text" name="licensePlate" placeholder="License plate" required>
+                    <input type="text" name="customerName" placeholder="Customer name" required>
                     <input type="tel" name="customerPhone" placeholder="+12345678901" required>
                 </div>
                 <div class="form-row">
-                    <input type="text" name="carMake" placeholder="Car Make" required>
-                    <input type="text" name="carColor" placeholder="Car Color" required>
+                    <input type="text" name="carMake" placeholder="Vehicle make and model" required>
+                    <input type="text" name="carColor" placeholder="Vehicle color" required>
                     <input type="text" name="notes" placeholder="Notes (optional)">
                 </div>
-                <label>Upload damage assessment photos (exactly 4 required):</label>
+                <label>Damage assessment photos (exactly four required)</label>
                 <input type="file" name="damageImages" accept="image/*" multiple>
                 <button type="submit" class="btn-submit">Complete Check-In</button>
             </form>
         </div>
-        
+
         <div class="section">
             <h3>Vehicle Checkout</h3>
             <form action="/checkout_manual" method="post" class="checkout-form">
@@ -1959,15 +2772,18 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
                 <button type="submit" class="btn-checkout">Process Checkout</button>
             </form>
         </div>
-        
+
         <hr>
-        
+
         <div class="section">
             <h3>Active Tickets</h3>
             <div style="text-align:center;">
-                <div class="key-counter">Keys in System: {{keys_in_system}}</div>
+                <div class="key-counter">
+                    Keys in System: {{keys_in_system}}
+                    <span>Live inventory</span>
+                </div>
             </div>
-            
+
             {% if data %}
             <table>
                 <thead>
@@ -2002,13 +2818,13 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
                         </td>
                         <td>{{t.checkInTime}}</td>
                         <td>{{t.assignedRunner or 'Unassigned'}}</td>
-                        
+
                         <td>
                             {% set ds = t.get('damageSummary', {}) %}
                             {% if ds.get('damage') %}
                                 <span
                                     class="damage-badge damage-{{ds.get('severity','none')}}"
-                                    title="AI Model: {{ds.get('modelVersion','')}} | Detections: {{ds.get('totalDetections', 0)}}"
+                                    title="AI Model: {{ds.get('modelVersion','')}} · Detections: {{ds.get('totalDetections', 0)}}"
                                     style="cursor:pointer;"
                                     onclick="openGallery('{{ t.ticketID }}')"
                                 >
@@ -2022,7 +2838,7 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
                                 <span class="damage-badge damage-none">None Detected</span>
                             {% endif %}
                         </td>
-                        
+
                         <td>
                             {% if t.status == 'Checked-In' %}
                                 <a href="/qrcode/{{t.ticketID}}" target="_blank" class="btn-qr">View QR</a>
@@ -2030,7 +2846,7 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
                                 —
                             {% endif %}
                         </td>
-                        
+
                         <td>
                             <div class="action-buttons">
                                 {% if t.status == 'Checked-In' %}
@@ -2059,15 +2875,15 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
                     {% endfor %}
                 </tbody>
             </table>
-            
+
             <div id="galleryModal" class="modal">
                 <div class="modal-content">
                     <button class="modal-close" onclick="closeGallery()">Close</button>
-                    <h3>Damage Assessment Photos (AI-Annotated)</h3>
+                    <h3>Damage Assessment Photos</h3>
                     <div id="galleryGrid" class="gallery-grid"></div>
                 </div>
             </div>
-            
+
             <script>
             function openGallery(ticketId){
                 const el = document.getElementById('ann-' + ticketId);
@@ -2079,18 +2895,20 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
                 if(!imgs || !imgs.length){
                     grid.innerHTML = '<p class="no-data">No annotated images available for this ticket.</p>';
                 } else {
-                    imgs.forEach(src=>{
+                    imgs.forEach(src => {
                         const card = document.createElement('div');
                         card.className = 'gallery-item';
                         card.innerHTML = `<img src="${src}" alt="Damage photo">`;
                         grid.appendChild(card);
                     });
                 }
-                document.getElementById('galleryModal').style.display='block';
+                document.getElementById('galleryModal').style.display = 'block';
             }
-            function closeGallery(){ document.getElementById('galleryModal').style.display='none'; }
+            function closeGallery(){
+                document.getElementById('galleryModal').style.display = 'none';
+            }
             </script>
-            
+
             <div class="pagination">
                 {% if page > 1 %}
                     <a href="/?page={{page-1}}"><button>Previous</button></a>
@@ -2106,7 +2924,7 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
                     <a href="/?page={{page+1}}"><button>Next</button></a>
                 {% endif %}
             </div>
-            
+
             {% else %}
             <p class="no-data">No tickets in the system. Check in a vehicle to begin operations.</p>
             {% endif %}
@@ -2114,6 +2932,7 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
     </div>
 </body>
 </html>'''
+
 # ===================== MAIN =====================
 if __name__ == "__main__":
     print("\n" + "="*70)

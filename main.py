@@ -665,381 +665,1455 @@ def calendar_view():
 def serve_file(filename):
     return send_from_directory(".", filename)
 
-# ===================== HTML =====================
-LOGIN_HTML = '''<html><head><title>Login</title></head>
-<body style="font-family:Arial;background:#f8f9fa;text-align:center;padding:80px;">
-<h2>🔐 Admin Login</h2>
-<form method="POST">
-<input type="text" name="username" placeholder="Username" required><br><br>
-<input type="password" name="password" placeholder="Password" required><br><br>
-<button type="submit">Login</button>
-</form><br><button onclick="location.href='/'">← Back</button>
-</body></html>'''
+# ===================== PROFESSIONAL HTML TEMPLATES =====================
 
-ADMIN_HTML = '''<html><body style="font-family:Arial;padding:40px;">
-<h2>🧑‍💼 Admin Panel</h2>
-<h3>📢 Post Announcement</h3>
-<form method="POST" action="/admin_announcement">
-<textarea name="message" rows="3" cols="50" required></textarea><br>
-<button type="submit">Post</button>
-</form><hr>
-<button onclick="location.href='/'">← Dashboard</button>
-<button onclick="location.href='/admin_logout'">Logout</button>
-</body></html>'''
-
-ANNOUNCEMENT_HTML = '''<html><body style="font-family:Arial;padding:40px;">
-<h2>📢 Announcements</h2>
-<div id="msg" style="font-size:18px;"></div>
-<script>
-fetch("/announcement").then(r=>r.json()).then(d=>{ document.getElementById("msg").innerText = d.message; });
-</script>
-<br><button onclick="location.href='/'">← Back</button>
-</body></html>'''
-
-RUNNER_PAGE_HTML = '''<html><head><title>Runner Clock-In</title>
-<style>
-body{font-family:Arial;background:#f8f9fa;padding:50px;text-align:center;}
-.portal{max-width:600px;margin:0 auto;background:white;padding:40px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
-input{padding:12px;font-size:16px;width:80%;margin:15px 0;border-radius:5px;border:2px solid #8e44ad;}
-button{padding:10px 25px;font-size:14px;border:none;border-radius:5px;cursor:pointer;margin:5px;}
-.clockin-btn{background:#8e44ad;color:white;} .clockout-btn{background:#e67e22;color:white;}
-.runner-item{background:#f8f9fa;padding:12px;margin:8px 0;border-radius:5px;border-left:4px solid #8e44ad;text-align:left;}
-</style></head>
-<body>
-<div class="portal">
-<h1>👷 Runner Clock Portal</h1>
-<form action="/clockin" method="post">
-<input type="text" name="runnerName" placeholder="Enter Your Name" required autofocus><br>
-<button type="submit" class="clockin-btn">🕐 Clock In</button>
-</form>
-<div style="margin-top:30px;text-align:left;">
-<h3>🧾 History</h3>
-{% if runners %}
-  {% for r in runners %}
-  <div class="runner-item">
-    <strong>{{ r.name }}</strong><br>
-    {% if r.get('clockOutTime') %}
-      <small>In: {{ r.clockInTime }} | Out: {{ r.clockOutTime }} | Duration: {{ r.get('duration', 'N/A') }}</small>
-    {% else %}
-      <small>Clocked In: {{ r.clockInTime }}</small>
-      <form action="/clockout" method="post" style="display:inline;margin-left:10px;">
-        <input type="hidden" name="runnerName" value="{{ r.name }}">
-        <button type="submit" class="clockout-btn">⏹ Clock Out</button>
-      </form>
-    {% endif %}
-  </div>
-  {% endfor %}
-{% else %}
-  <p style="color:#999;">No runners yet</p>
-{% endif %}
-</div>
-<br><button onclick="location.href='/'" style="background:#e74c3c;color:white;">← Back</button>
-</div>
-</body></html>'''
-
-SHIFT_PORTAL_HTML = '''<html><head><title>Shift Portal</title>
-<style>
-body{font-family:Arial;background:#f8f9fa;padding:40px;}
-table{width:100%;border-collapse:collapse;margin:20px 0;background:white;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-th,td{border:1px solid #ddd;padding:12px;text-align:center;}
-th{background:#b30000;color:white;}
-button{padding:8px 16px;border:none;border-radius:5px;cursor:pointer;margin:2px;}
-.pick-btn{background:#27ae60;color:white;} .drop-btn{background:#e74c3c;color:white;} .delete-btn{background:#c0392b;color:white;}
-</style></head>
-<body>
-<h2>📋 Shift Management</h2>
-<div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;">
-<h3>➕ Add Shift</h3>
-<select id="daySelect">
-  <option value="">Day</option>
-  <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
-  <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
-</select>
-<select id="timeSelect">
-  <option value="">Time</option>
-  <option>6am-2pm</option><option>7am-3pm</option><option>8am-4pm</option>
-  <option>9am-5pm</option><option>2pm-10pm</option>
-</select>
-<button onclick="addShift()" style="background:#3498db;color:white;">Add</button>
-</div>
-<div id="shiftTable"></div>
-<script>
-async function loadShifts(){
-  const res = await fetch("/shifts");
-  const data = await res.json();
-  let html = "<table><tr><th>ID</th><th>Day</th><th>Time</th><th>Assigned</th><th>Actions</th></tr>";
-  if(data.length === 0){ html += "<tr><td colspan='5'>No shifts</td></tr>"; }
-  data.forEach(s=>{
-    html += `\n<tr>
-      <td><strong>#${s.id}</strong></td>
-      <td>${s.day || ''}</td>
-      <td>${s.time || ''}</td>
-      <td>${s.assigned_to || 'Available'}</td>
-      <td>
-        ${s.assigned_to
-          ? `<button class="drop-btn" onclick="drop(${s.id}, '${s.assigned_to}')">Unassign</button>`
-          : `<button class="pick-btn" onclick="pick(${s.id})">Pick</button>`
+LOGIN_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Valet Management System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        <button class="delete-btn" onclick="del(${s.id})">Delete</button>
-      </td></tr>`;
-  });
-  html += "</table>";
-  document.getElementById("shiftTable").innerHTML = html;
-}
-async function addShift(){
-  const day = document.getElementById("daySelect").value;
-  const time = document.getElementById("timeSelect").value;
-  if(!day || !time){ alert("Select both"); return; }
-  await fetch("/add_shift",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({day,time})});
-  loadShifts();
-}
-async function pick(id){
-  const user = prompt("Your name:"); if(!user) return;
-  await fetch("/pick_shift",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,user})});
-  loadShifts();
-}
-async function drop(id, user){
-  const u = prompt(`Enter name (must match: ${user}):`); if(!u || u.toLowerCase() != user.toLowerCase()) return;
-  await fetch("/drop_shift",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,user:u})});
-  loadShifts();
-}
-async function del(id){
-  if(!confirm("Delete?")) return;
-  await fetch("/delete_shift",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});
-  loadShifts();
-}
-loadShifts();
-</script>
-<button onclick="location.href='/'" style="background:#2c3e50;color:white;padding:12px 24px;">← Back</button>
-</body></html>'''
-
-CALENDAR_HTML = '''<!DOCTYPE html><html><head><title>Calendar</title>
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
-<style>body{font-family:Arial;background:#f8f9fa;padding:40px;}
-#calendar{max-width:1200px;margin:20px auto;background:white;padding:20px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
-</style></head>
+        .login-container {
+            background: white;
+            padding: 50px 60px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 420px;
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button[type="submit"] {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        .back-btn {
+            width: 100%;
+            padding: 12px;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.3s;
+        }
+        .back-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
 <body>
-<h2 style="text-align:center;">📅 Shift Calendar</h2>
-<div id="calendar"></div>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
-    initialView: 'dayGridMonth',
-    headerToolbar: {left:'prev,next today', center:'title', right:'dayGridMonth,timeGridWeek'},
-    events: []
-  });
-  cal.render();
-});
-</script>
-<button onclick="location.href='/'" style="background:#2c3e50;color:white;padding:12px 24px;margin-top:20px;">← Back</button>
-</body></html>'''
-
-MAIN_PAGE_HTML = '''<!doctype html><html><head>
-<title>Valet Operations System</title>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<style>
-body{font-family:Arial,sans-serif;background:#f8f9fa;margin:0;}
-.header{display:flex;align-items:center;justify-content:center;position:relative;padding-top:20px;}
-h1{text-align:center;color:#2c3e50;margin-bottom:5px;}
-h2{text-align:center;color:#b30000;margin-top:0;}
-.container{width:92%;margin:30px auto;background:white;padding:30px 40px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
-h3{color:#2c3e50;border-bottom:2px solid #b30000;padding-bottom:5px;}
-input,button,select{margin:5px;padding:8px;border-radius:5px;border:1px solid #ccc;}
-button{cursor:pointer;font-weight:bold;}
-.checkin-btn{background:#27ae60;color:white;border:none;}
-.checkout-btn{background:#3498db;color:white;border:none;}
-.clockin-btn{background:#8e44ad;color:white;border:none;}
-.delete-btn{background:#e74c3c;color:white;border:none;padding:5px 10px;}
-.scan-btn{background:#f39c12;color:white;border:none;}
-.key-count{background:#b30000;color:white;padding:8px 15px;border-radius:8px;font-weight:bold;display:inline-block;margin:15px 0;}
-table{width:100%;border-collapse:collapse;margin-top:15px;}
-th,td{border:1px solid #ddd;padding:10px;text-align:left;}
-th{background:#b30000;color:white;}
-.ticket-id-col{background:#b30000;color:white;font-weight:bold;text-align:center;}
-tr:nth-child(even){background:#f9f9f9;}
-.message{padding:15px;margin:10px 0;border-radius:5px;font-weight:bold;}
-.message.success{background:#d4edda;color:#155724;}
-.message.warning{background:#fff3cd;color:#856404;}
-.pagination{text-align:center;margin-top:25px;}
-.pagination button{background:#b30000;color:white;border:none;padding:8px 14px;margin:3px;border-radius:5px;}
-.top-buttons{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.damage-badge{display:inline-block;padding:4px 8px;border-radius:4px;font-size:11px;font-weight:bold;}
-.damage-none{background:#d4edda;color:#155724;}
-.damage-minor{background:#fff3cd;color:#856404;}
-.damage-moderate{background:#ffc107;color:#000;}
-.damage-severe{background:#f8d7da;color:#721c24;}
-</style></head>
-<body>
-<div class="header">
-  <div>
-    <h1>🚗 Valet Operations System</h1>
-    <h2>Moffitt Cancer Center — Red Ramp Valet</h2>
-  </div>
-  <a href="/admin_login" style="position:absolute;right:40px;top:20px;background:#2c3e50;color:white;padding:10px 15px;border-radius:6px;text-decoration:none;font-weight:bold;">🔐 Admin</a>
-</div>
-<div class="container">
-  {% if message %}
-  <div class="message {{message_type}}">{{message}}</div>
-  {% endif %}
-
-  <div class="top-buttons">
-    <button class="clockin-btn" onclick="location.href='/runner_clockin'">👷 Runners</button>
-    <button class="checkout-btn" onclick="location.href='/shift_portal'">📋 Shifts</button>
-    <button class="scan-btn" onclick="location.href='/calendar'">📅 Calendar</button>
-    <button style="background:#2980b9;color:white;border:none;" onclick="location.href='/announcement_page'">📢 Announcements</button>
-  </div>
-
-  <h3>🚗 Check-In Vehicle</h3>
-  <form action="/checkin" method="post" enctype="multipart/form-data">
-    <input type="text" name="licensePlate" placeholder="License Plate" required>
-    <input type="text" name="customerName" placeholder="Customer Name" required>
-    <input type="tel" name="customerPhone" placeholder="+12345678901" required>
-    <input type="text" name="carMake" placeholder="Car Make" required>
-    <input type="text" name="carColor" placeholder="Car Color" required>
-    <input type="text" name="notes" placeholder="Notes (optional)">
-    <br><br>
-    <label>📸 Upload damage photos (exactly 4):</label>
-    <input type="file" name="damageImages" accept="image/*" multiple>
-    <button type="submit" class="checkin-btn">✅ Check In</button>
-  </form>
-
-  <h3>🔑 Checkout Keys</h3>
-  <form action="/checkout_manual" method="post" style="display:flex;gap:10px;align-items:center;">
-    <input type="text" name="ticket_id" placeholder="Ticket Number" required style="padding:8px;width:200px;">
-    <button type="submit" class="checkout-btn">Check Out</button>
-  </form>
-  <hr>
-
-  <h3>📋 All Tickets</h3>
-  <div style="text-align:center;margin:10px 0;">
-    <div class="key-count">🔑 Keys in System: {{keys_in_system}}</div>
-  </div>
-
-  {% if data %}
-  <table>
-    <thead>
-      <tr>
-        <th>Ticket</th><th>Plate</th><th>Name</th><th>Phone</th>
-        <th>Make</th><th>Color</th><th>Status</th><th>Time</th>
-        <th>Runner</th><th>Damage</th><th>QR</th><th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for t in data %}
-      <tr>
-        <td class="ticket-id-col">#{{t.ticketID}}</td>
-        <td>{{t.licensePlate}}</td>
-        <td>{{t.customerName}}</td>
-        <td>{{t.customerPhone}}</td>
-        <td>{{t.carMake}}</td>
-        <td>{{t.carColor}}</td>
-        <td style="color:{% if t.status=='Checked-In' %}#27ae60{% else %}#95a5a6{% endif %};font-weight:bold;">{{t.status}}</td>
-        <td>{{t.checkInTime}}</td>
-        <td>{{t.assignedRunner or 'N/A'}}</td>
-
-        <!-- Damage badge (clickable) -->
-        <td>
-          {% set ds = t.get('damageSummary', {}) %}
-          {% if ds.get('damage') %}
-            <span
-              class="damage-badge damage-{{ds.get('severity','none')}}"
-              title="AI: {{ds.get('modelVersion','')}} | Detections: {{ds.get('totalDetections', 0)}}"
-              style="cursor:pointer;"
-              onclick="openGallery('{{ t.ticketID }}')"
-            >
-              🛠 {{ds.get('severity','none')|capitalize}}
-              {% if ds.get('location') %}<br>📍 {{', '.join(ds.get('location'))}}{% endif %}
-            </span>
-            <script type="application/json" id="ann-{{ t.ticketID }}">
-              {{ (t.get('damageAnnotated', []) or []) | tojson }}
-            </script>
-          {% else %}
-            <span class="damage-badge damage-none">✅ None</span>
-          {% endif %}
-        </td>
-
-        <!-- QR column -->
-        <td>
-          {% if t.status == 'Checked-In' %}
-            <a href="/qrcode/{{t.ticketID}}" target="_blank"><button class="scan-btn">QR</button></a>
-          {% else %}-{% endif %}
-        </td>
-
-        <!-- Actions -->
-        <td>
-          {% if t.status == 'Checked-In' %}
-            <form action="/assign_runner/{{t.ticketID}}" method="post" style="display:inline;">
-              <select name="runnerName" required>
-                <option value="">Assign</option>
-                {% for r in runners %}
-                  <option value="{{r.name}}">{{r.name}}</option>
-                {% endfor %}
-              </select>
-              <button type="submit" class="clockin-btn">✓</button>
-            </form>
-            <form action="/vehicle_ready/{{t.ticketID}}" method="post" style="display:inline;">
-              <button type="submit" class="scan-btn">📱 Ready</button>
-            </form>
-            <form action="/checkout/{{t.ticketID}}" method="post" style="display:inline;">
-              <button type="submit" class="checkout-btn">Checkout</button>
-            </form>
-          {% endif %}
-          <form action="/delete/{{t.ticketID}}" method="post" style="display:inline;">
-            <button type="submit" class="delete-btn" onclick="return confirm('Delete?')">🗑</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <!-- Gallery Modal -->
-  <div id="galleryModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9999;">
-    <div style="max-width:1100px; margin:40px auto; background:white; border-radius:8px; padding:18px; position:relative;">
-      <button onclick="closeGallery()" style="position:absolute; right:16px; top:12px; font-size:18px;">✖</button>
-      <h3 style="margin:0 0 10px 0;">Damage Photos (Annotated)</h3>
-      <div id="galleryGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px;"></div>
+    <div class="login-container">
+        <h2>Administrator Login</h2>
+        <form method="POST">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">Sign In</button>
+        </form>
+        <button class="back-btn" onclick="location.href='/'">Back to Dashboard</button>
     </div>
-  </div>
+</body>
+</html>'''
 
-  <script>
-  function openGallery(ticketId){
-    const el = document.getElementById('ann-' + ticketId);
-    if(!el) return;
-    let imgs = [];
-    try { imgs = JSON.parse(el.textContent || '[]'); } catch(e){ imgs = []; }
-    const grid = document.getElementById('galleryGrid');
-    grid.innerHTML = '';
-    if(!imgs || !imgs.length){
-      grid.innerHTML = '<p style="color:#666;">No annotated images found for this ticket.</p>';
-    } else {
-      imgs.forEach(src=>{
-        const card = document.createElement('div');
-        card.style.border='1px solid #ddd'; card.style.borderRadius='6px'; card.style.overflow='hidden';
-        card.innerHTML = `<img src="${src}" style="width:100%; display:block; max-height:420px; object-fit:contain; background:#000">`;
-        grid.appendChild(card);
-      });
+ADMIN_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Valet Management System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 32px;
+            font-weight: 600;
+        }
+        h3 {
+            color: #34495e;
+            margin: 30px 0 20px 0;
+            font-size: 20px;
+            font-weight: 600;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        textarea {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 15px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        button {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px 5px 0 0;
+        }
+        button[type="submit"] {
+            background: #3498db;
+            color: white;
+        }
+        button[type="submit"]:hover {
+            background: #2980b9;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        .btn-logout {
+            background: #e74c3c;
+            color: white;
+        }
+        .btn-logout:hover {
+            background: #c0392b;
+        }
+        hr {
+            margin: 30px 0;
+            border: none;
+            border-top: 1px solid #e0e0e0;
+        }
+        .button-group {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Administration Panel</h2>
+        
+        <h3>Post System Announcement</h3>
+        <form method="POST" action="/admin_announcement">
+            <textarea name="message" rows="4" placeholder="Enter announcement message..." required></textarea>
+            <div class="button-group">
+                <button type="submit">Publish Announcement</button>
+            </div>
+        </form>
+        
+        <hr>
+        
+        <div class="button-group">
+            <button class="btn-secondary" onclick="location.href='/'">Return to Dashboard</button>
+            <button class="btn-logout" onclick="location.href='/admin_logout'">Logout</button>
+        </div>
+    </div>
+</body>
+</html>'''
+
+ANNOUNCEMENT_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Announcements - Valet Management System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 32px;
+            font-weight: 600;
+        }
+        #msg {
+            font-size: 18px;
+            line-height: 1.6;
+            color: #34495e;
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 6px;
+            border-left: 4px solid #3498db;
+            min-height: 60px;
+        }
+        button {
+            padding: 12px 28px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 25px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>System Announcements</h2>
+        <div id="msg">Loading announcement...</div>
+        <button onclick="location.href='/'">Back to Dashboard</button>
+    </div>
+    <script>
+        fetch("/announcement")
+            .then(r => r.json())
+            .then(d => {
+                document.getElementById("msg").innerText = d.message || "No announcements at this time.";
+            })
+            .catch(() => {
+                document.getElementById("msg").innerText = "Unable to load announcements.";
+            });
+    </script>
+</body>
+</html>'''
+
+RUNNER_PAGE_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runner Management - Valet Operations</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 32px;
+            font-weight: 600;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 35px;
+            font-size: 16px;
+        }
+        .form-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 15px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #8e44ad;
+        }
+        button {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+        }
+        .btn-primary {
+            background: #8e44ad;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #732d91;
+            box-shadow: 0 4px 12px rgba(142, 68, 173, 0.3);
+        }
+        .btn-warning {
+            background: #e67e22;
+            color: white;
+            padding: 8px 18px;
+            font-size: 14px;
+        }
+        .btn-warning:hover {
+            background: #d35400;
+        }
+        .btn-back {
+            background: #e74c3c;
+            color: white;
+            margin-top: 20px;
+        }
+        .btn-back:hover {
+            background: #c0392b;
+        }
+        h3 {
+            color: #34495e;
+            margin: 30px 0 20px 0;
+            font-size: 20px;
+            font-weight: 600;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #8e44ad;
+        }
+        .runner-item {
+            background: #ffffff;
+            padding: 18px;
+            margin: 12px 0;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            border-left: 4px solid #8e44ad;
+            transition: box-shadow 0.3s;
+        }
+        .runner-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .runner-name {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        .runner-details {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .no-data {
+            text-align: center;
+            color: #95a5a6;
+            padding: 40px;
+            font-size: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Runner Management</h1>
+        <p class="subtitle">Clock in/out and track runner activity</p>
+        
+        <div class="form-section">
+            <form action="/clockin" method="post">
+                <input type="text" name="runnerName" placeholder="Enter runner name" required autofocus>
+                <button type="submit" class="btn-primary">Clock In</button>
+            </form>
+        </div>
+        
+        <h3>Activity Log</h3>
+        {% if runners %}
+            {% for r in runners %}
+            <div class="runner-item">
+                <div class="runner-name">{{ r.name }}</div>
+                {% if r.get('clockOutTime') %}
+                    <div class="runner-details">
+                        Clock In: {{ r.clockInTime }} | Clock Out: {{ r.clockOutTime }} | Duration: {{ r.get('duration', 'N/A') }}
+                    </div>
+                {% else %}
+                    <div class="runner-details">
+                        Active since: {{ r.clockInTime }}
+                        <form action="/clockout" method="post" style="display:inline; margin-left:15px;">
+                            <input type="hidden" name="runnerName" value="{{ r.name }}">
+                            <button type="submit" class="btn-warning">Clock Out</button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-data">No runner activity recorded yet</div>
+        {% endif %}
+        
+        <button class="btn-back" onclick="location.href='/'">Back to Dashboard</button>
+    </div>
+</body>
+</html>'''
+
+SHIFT_PORTAL_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shift Management - Valet Operations</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 32px;
+            font-weight: 600;
+        }
+        .add-shift-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+        h3 {
+            color: #34495e;
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        select {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 15px;
+            margin-right: 10px;
+            min-width: 160px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        button {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-add {
+            background: #3498db;
+            color: white;
+        }
+        .btn-add:hover {
+            background: #2980b9;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+        .btn-pick {
+            background: #27ae60;
+            color: white;
+            padding: 8px 18px;
+            font-size: 14px;
+        }
+        .btn-pick:hover {
+            background: #229954;
+        }
+        .btn-drop {
+            background: #e67e22;
+            color: white;
+            padding: 8px 18px;
+            font-size: 14px;
+        }
+        .btn-drop:hover {
+            background: #d35400;
+        }
+        .btn-delete {
+            background: #e74c3c;
+            color: white;
+            padding: 8px 18px;
+            font-size: 14px;
+        }
+        .btn-delete:hover {
+            background: #c0392b;
+        }
+        .btn-back {
+            background: #2c3e50;
+            color: white;
+            margin-top: 25px;
+        }
+        .btn-back:hover {
+            background: #1a252f;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 16px;
+            text-align: left;
+        }
+        th {
+            background: #b30000;
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+        td {
+            border-bottom: 1px solid #e0e0e0;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        .shift-id {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .no-shifts {
+            text-align: center;
+            padding: 40px;
+            color: #95a5a6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Shift Management</h2>
+        
+        <div class="add-shift-section">
+            <h3>Create New Shift</h3>
+            <select id="daySelect">
+                <option value="">Select Day</option>
+                <option>Monday</option>
+                <option>Tuesday</option>
+                <option>Wednesday</option>
+                <option>Thursday</option>
+                <option>Friday</option>
+                <option>Saturday</option>
+                <option>Sunday</option>
+            </select>
+            <select id="timeSelect">
+                <option value="">Select Time</option>
+                <option>6am-2pm</option>
+                <option>7am-3pm</option>
+                <option>8am-4pm</option>
+                <option>9am-5pm</option>
+                <option>2pm-10pm</option>
+            </select>
+            <button onclick="addShift()" class="btn-add">Add Shift</button>
+        </div>
+        
+        <div id="shiftTable"></div>
+        
+        <button class="btn-back" onclick="location.href='/'">Back to Dashboard</button>
+    </div>
+    
+    <script>
+    async function loadShifts(){
+        const res = await fetch("/shifts");
+        const data = await res.json();
+        let html = "<table><thead><tr><th>Shift ID</th><th>Day</th><th>Time Slot</th><th>Assigned To</th><th>Actions</th></tr></thead><tbody>";
+        
+        if(data.length === 0){
+            html += "<tr><td colspan='5' class='no-shifts'>No shifts scheduled</td></tr>";
+        } else {
+            data.forEach(s => {
+                html += `<tr>
+                    <td class="shift-id">#${s.id}</td>
+                    <td>${s.day || ''}</td>
+                    <td>${s.time || ''}</td>
+                    <td>${s.assigned_to || '<span style="color:#95a5a6;">Available</span>'}</td>
+                    <td>
+                        ${s.assigned_to
+                            ? `<button class="btn-drop" onclick="drop(${s.id}, '${s.assigned_to}')">Unassign</button>`
+                            : `<button class="btn-pick" onclick="pick(${s.id})">Assign Shift</button>`
+                        }
+                        <button class="btn-delete" onclick="del(${s.id})">Delete</button>
+                    </td>
+                </tr>`;
+            });
+        }
+        
+        html += "</tbody></table>";
+        document.getElementById("shiftTable").innerHTML = html;
     }
-    document.getElementById('galleryModal').style.display='block';
-  }
-  function closeGallery(){ document.getElementById('galleryModal').style.display='none'; }
-  </script>
+    
+    async function addShift(){
+        const day = document.getElementById("daySelect").value;
+        const time = document.getElementById("timeSelect").value;
+        if(!day || !time){
+            alert("Please select both day and time");
+            return;
+        }
+        await fetch("/add_shift", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({day, time})
+        });
+        loadShifts();
+    }
+    
+    async function pick(id){
+        const user = prompt("Enter your name:");
+        if(!user) return;
+        await fetch("/pick_shift", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({id, user})
+        });
+        loadShifts();
+    }
+    
+    async function drop(id, user){
+        const u = prompt(`Enter name to confirm (must match: ${user}):`);
+        if(!u || u.toLowerCase() != user.toLowerCase()) return;
+        await fetch("/drop_shift", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({id, user: u})
+        });
+        loadShifts();
+    }
+    
+    async function del(id){
+        if(!confirm("Are you sure you want to delete this shift?")) return;
+        await fetch("/delete_shift", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({id})
+        });
+        loadShifts();
+    }
+    
+    loadShifts();
+    </script>
+</body>
+</html>'''
 
-  <div class="pagination">
-    {% if page > 1 %}<a href="/?page={{page-1}}"><button>⬅️ Prev</button></a>{% endif %}
-    {% for i in range(1, total_pages + 1) %}
-      {% if i == page %}<strong style="color:#b30000;margin:0 6px;">[{{i}}]</strong>
-      {% else %}<a href="/?page={{i}}"><button>{{i}}</button></a>{% endif %}
-    {% endfor %}
-    {% if page < total_pages %}<a href="/?page={{page+1}}"><button>Next ➡️</button></a>{% endif %}
-  </div>
-  {% else %}
-  <p style="text-align:center;color:#999;">No tickets yet. Check in a vehicle to get started!</p>
-  {% endif %}
-</div>
-</body></html>'''
+CALENDAR_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shift Calendar - Valet Operations</title>
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 32px;
+            font-weight: 600;
+            text-align: center;
+        }
+        #calendar {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        button {
+            padding: 12px 28px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 25px;
+            transition: all 0.3s;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        button:hover {
+            background: #1a252f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Shift Calendar</h2>
+        <div id="calendar"></div>
+        <button onclick="location.href='/'">Back to Dashboard</button>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek'
+            },
+            events: []
+        });
+        cal.render();
+    });
+    </script>
+</body>
+</html>'''
 
+MAIN_PAGE_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valet Operations System - Moffitt Cancer Center</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #b30000 0%, #8b0000 100%);
+            color: white;
+            padding: 30px 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            position: relative;
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        
+        .header h2 {
+            font-size: 16px;
+            font-weight: 400;
+            opacity: 0.95;
+        }
+        
+        .admin-link {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .admin-link:hover {
+            background: rgba(255,255,255,0.25);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .alert {
+            padding: 16px 20px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+            font-weight: 500;
+            border-left: 4px solid;
+        }
+        
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border-color: #28a745;
+        }
+        
+        .alert.warning {
+            background: #fff3cd;
+            color: #856404;
+            border-color: #ffc107;
+        }
+        
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+        }
+        
+        .nav-buttons button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-purple { background: #8e44ad; color: white; }
+        .btn-purple:hover { background: #732d91; box-shadow: 0 4px 12px rgba(142,68,173,0.3); }
+        
+        .btn-blue { background: #3498db; color: white; }
+        .btn-blue:hover { background: #2980b9; box-shadow: 0 4px 12px rgba(52,152,219,0.3); }
+        
+        .btn-orange { background: #f39c12; color: white; }
+        .btn-orange:hover { background: #e67e22; box-shadow: 0 4px 12px rgba(243,156,18,0.3); }
+        
+        .btn-teal { background: #16a085; color: white; }
+        .btn-teal:hover { background: #138d75; box-shadow: 0 4px 12px rgba(22,160,133,0.3); }
+        
+        h3 {
+            color: #2c3e50;
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #b30000;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        input[type="text"],
+        input[type="tel"],
+        input[type="file"] {
+            padding: 12px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        input[type="tel"]:focus {
+            outline: none;
+            border-color: #27ae60;
+        }
+        
+        label {
+            display: block;
+            margin: 15px 0 8px 0;
+            font-weight: 600;
+            font-size: 14px;
+            color: #34495e;
+        }
+        
+        button[type="submit"] {
+            padding: 12px 32px;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 15px;
+        }
+        
+        .btn-submit {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-submit:hover {
+            background: #229954;
+            box-shadow: 0 4px 12px rgba(39,174,96,0.3);
+        }
+        
+        .checkout-form {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        
+        .checkout-form input {
+            flex: 0 0 250px;
+        }
+        
+        .btn-checkout {
+            background: #3498db;
+            color: white;
+            padding: 12px 28px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-checkout:hover {
+            background: #2980b9;
+        }
+        
+        .key-counter {
+            background: linear-gradient(135deg, #b30000 0%, #8b0000 100%);
+            color: white;
+            padding: 18px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-block;
+            margin: 20px 0;
+            font-size: 18px;
+            box-shadow: 0 4px 12px rgba(179,0,0,0.3);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+        }
+        
+        th, td {
+            padding: 14px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        th {
+            background: #2c3e50;
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .ticket-id {
+            background: #b30000;
+            color: white;
+            font-weight: 700;
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        .status-active {
+            color: #27ae60;
+            font-weight: 600;
+        }
+        
+        .status-complete {
+            color: #95a5a6;
+            font-weight: 600;
+        }
+        
+        .damage-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .damage-none {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .damage-minor {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .damage-moderate {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .damage-severe {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        
+        .action-buttons button,
+        .action-buttons select {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .action-buttons select {
+            border: 2px solid #e0e0e0;
+            background: white;
+        }
+        
+        .btn-assign {
+            background: #8e44ad;
+            color: white;
+        }
+        
+        .btn-ready {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .btn-checkout-action {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-delete {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-qr {
+            background: #16a085;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+        }
+        
+        .pagination {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 25px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .pagination button {
+            background: #b30000;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            margin: 3px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .pagination button:hover {
+            background: #8b0000;
+        }
+        
+        .pagination .current {
+            color: #b30000;
+            font-weight: 700;
+            margin: 0 8px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            overflow-y: auto;
+        }
+        
+        .modal-content {
+            max-width: 1200px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            position: relative;
+        }
+        
+        .modal-close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .modal-close:hover {
+            background: #c0392b;
+        }
+        
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .gallery-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .gallery-item img {
+            width: 100%;
+            display: block;
+            max-height: 450px;
+            object-fit: contain;
+            background: #000;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #95a5a6;
+            font-size: 16px;
+        }
+        
+        hr {
+            margin: 30px 0;
+            border: none;
+            border-top: 1px solid #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div>
+                <h1>Valet Operations System</h1>
+                <h2>Moffitt Cancer Center — Red Ramp Valet</h2>
+            </div>
+            <a href="/admin_login" class="admin-link">Administrator</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        {% if message %}
+        <div class="alert {{message_type}}">{{message}}</div>
+        {% endif %}
+        
+        <div class="nav-buttons">
+            <button class="btn-purple" onclick="location.href='/runner_clockin'">Runner Management</button>
+            <button class="btn-blue" onclick="location.href='/shift_portal'">Shift Management</button>
+            <button class="btn-orange" onclick="location.href='/calendar'">Shift Calendar</button>
+            <button class="btn-teal" onclick="location.href='/announcement_page'">Announcements</button>
+        </div>
+        
+        <div class="section">
+            <h3>Vehicle Check-In</h3>
+            <form action="/checkin" method="post" enctype="multipart/form-data">
+                <div class="form-row">
+                    <input type="text" name="licensePlate" placeholder="License Plate" required>
+                    <input type="text" name="customerName" placeholder="Customer Name" required>
+                    <input type="tel" name="customerPhone" placeholder="+12345678901" required>
+                </div>
+                <div class="form-row">
+                    <input type="text" name="carMake" placeholder="Car Make" required>
+                    <input type="text" name="carColor" placeholder="Car Color" required>
+                    <input type="text" name="notes" placeholder="Notes (optional)">
+                </div>
+                <label>Upload damage assessment photos (exactly 4 required):</label>
+                <input type="file" name="damageImages" accept="image/*" multiple>
+                <button type="submit" class="btn-submit">Complete Check-In</button>
+            </form>
+        </div>
+        
+        <div class="section">
+            <h3>Vehicle Checkout</h3>
+            <form action="/checkout_manual" method="post" class="checkout-form">
+                <div>
+                    <label>Ticket Number</label>
+                    <input type="text" name="ticket_id" placeholder="Enter ticket number" required>
+                </div>
+                <button type="submit" class="btn-checkout">Process Checkout</button>
+            </form>
+        </div>
+        
+        <hr>
+        
+        <div class="section">
+            <h3>Active Tickets</h3>
+            <div style="text-align:center;">
+                <div class="key-counter">Keys in System: {{keys_in_system}}</div>
+            </div>
+            
+            {% if data %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ticket</th>
+                        <th>License</th>
+                        <th>Customer</th>
+                        <th>Phone</th>
+                        <th>Vehicle</th>
+                        <th>Color</th>
+                        <th>Status</th>
+                        <th>Check-In Time</th>
+                        <th>Runner</th>
+                        <th>Damage</th>
+                        <th>QR Code</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in data %}
+                    <tr>
+                        <td><span class="ticket-id">{{t.ticketID}}</span></td>
+                        <td>{{t.licensePlate}}</td>
+                        <td>{{t.customerName}}</td>
+                        <td>{{t.customerPhone}}</td>
+                        <td>{{t.carMake}}</td>
+                        <td>{{t.carColor}}</td>
+                        <td>
+                            <span class="{% if t.status=='Checked-In' %}status-active{% else %}status-complete{% endif %}">
+                                {{t.status}}
+                            </span>
+                        </td>
+                        <td>{{t.checkInTime}}</td>
+                        <td>{{t.assignedRunner or 'Unassigned'}}</td>
+                        
+                        <td>
+                            {% set ds = t.get('damageSummary', {}) %}
+                            {% if ds.get('damage') %}
+                                <span
+                                    class="damage-badge damage-{{ds.get('severity','none')}}"
+                                    title="AI Model: {{ds.get('modelVersion','')}} | Detections: {{ds.get('totalDetections', 0)}}"
+                                    style="cursor:pointer;"
+                                    onclick="openGallery('{{ t.ticketID }}')"
+                                >
+                                    {{ds.get('severity','none')|capitalize}}
+                                    {% if ds.get('location') %}<br>{{', '.join(ds.get('location'))}}{% endif %}
+                                </span>
+                                <script type="application/json" id="ann-{{ t.ticketID }}">
+                                    {{ (t.get('damageAnnotated', []) or []) | tojson }}
+                                </script>
+                            {% else %}
+                                <span class="damage-badge damage-none">None Detected</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td>
+                            {% if t.status == 'Checked-In' %}
+                                <a href="/qrcode/{{t.ticketID}}" target="_blank" class="btn-qr">View QR</a>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        
+                        <td>
+                            <div class="action-buttons">
+                                {% if t.status == 'Checked-In' %}
+                                    <form action="/assign_runner/{{t.ticketID}}" method="post" style="display:inline;">
+                                        <select name="runnerName" required>
+                                            <option value="">Assign Runner</option>
+                                            {% for r in runners %}
+                                                <option value="{{r.name}}">{{r.name}}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn-assign">Assign</button>
+                                    </form>
+                                    <form action="/vehicle_ready/{{t.ticketID}}" method="post" style="display:inline;">
+                                        <button type="submit" class="btn-ready">Ready</button>
+                                    </form>
+                                    <form action="/checkout/{{t.ticketID}}" method="post" style="display:inline;">
+                                        <button type="submit" class="btn-checkout-action">Checkout</button>
+                                    </form>
+                                {% endif %}
+                                <form action="/delete/{{t.ticketID}}" method="post" style="display:inline;">
+                                    <button type="submit" class="btn-delete" onclick="return confirm('Delete this ticket?')">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div id="galleryModal" class="modal">
+                <div class="modal-content">
+                    <button class="modal-close" onclick="closeGallery()">Close</button>
+                    <h3>Damage Assessment Photos (AI-Annotated)</h3>
+                    <div id="galleryGrid" class="gallery-grid"></div>
+                </div>
+            </div>
+            
+            <script>
+            function openGallery(ticketId){
+                const el = document.getElementById('ann-' + ticketId);
+                if(!el) return;
+                let imgs = [];
+                try { imgs = JSON.parse(el.textContent || '[]'); } catch(e){ imgs = []; }
+                const grid = document.getElementById('galleryGrid');
+                grid.innerHTML = '';
+                if(!imgs || !imgs.length){
+                    grid.innerHTML = '<p class="no-data">No annotated images available for this ticket.</p>';
+                } else {
+                    imgs.forEach(src=>{
+                        const card = document.createElement('div');
+                        card.className = 'gallery-item';
+                        card.innerHTML = `<img src="${src}" alt="Damage photo">`;
+                        grid.appendChild(card);
+                    });
+                }
+                document.getElementById('galleryModal').style.display='block';
+            }
+            function closeGallery(){ document.getElementById('galleryModal').style.display='none'; }
+            </script>
+            
+            <div class="pagination">
+                {% if page > 1 %}
+                    <a href="/?page={{page-1}}"><button>Previous</button></a>
+                {% endif %}
+                {% for i in range(1, total_pages + 1) %}
+                    {% if i == page %}
+                        <span class="current">{{i}}</span>
+                    {% else %}
+                        <a href="/?page={{i}}"><button>{{i}}</button></a>
+                    {% endif %}
+                {% endfor %}
+                {% if page < total_pages %}
+                    <a href="/?page={{page+1}}"><button>Next</button></a>
+                {% endif %}
+            </div>
+            
+            {% else %}
+            <p class="no-data">No tickets in the system. Check in a vehicle to begin operations.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>'''
 # ===================== MAIN =====================
 if __name__ == "__main__":
     print("\n" + "="*70)

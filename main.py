@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Valet Operations Management System with Damage Detection
+Valet Operations Management System with Damage Detection and Authentication
 - Uses Roboflow Hosted API via requests (hardcoded key/model here)
-- Falls back to local YOLOv8 (if installed)
 - Enforces exactly 4 photos per check-in
 - Shows Minor/Moderate/Severe based on TOTAL detections across all 4 photos:
     <3 = minor, 3–6 = moderate, >6 = severe
 - Clicking the severity badge opens a modal gallery with the 4 annotated images
 - Allows up to 64 MB uploads and downscales images before sending to Roboflow
+- Includes staff login authentication for dashboard access
 """
 
-import os, io, json, datetime, qrcode, cv2
+import os, io, json, datetime, qrcode
 from functools import wraps
 from flask import Flask, render_template_string, request, redirect, jsonify, session, send_from_directory, url_for
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -26,19 +26,6 @@ QRCODE_FOLDER = os.path.join(STATIC_DIR, "qrcodes")
 RF_API_KEY  = "v7rqUvArsg97ISvd3PEj"                 # <-- your Private API Key
 RF_MODEL_ID = "car-damage-assessment-8mb45-aigqn/1"   # <-- Universe model/version id
 RF_ENABLED  = True
-
-# YOLO local (optional fallback)
-YOLO_ENABLED = False
-yolo_model = None
-try:
-    from ultralytics import YOLO
-    MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "yolov8n.pt")
-    yolo_model = YOLO(MODEL_PATH)
-    YOLO_ENABLED = True
-    print(f"✅ YOLOv8 model loaded: {MODEL_PATH}")
-except Exception as e:
-    print(f"⚠️  YOLOv8 disabled: {e}")
-    print("   To enable, run: pip3 install ultralytics opencv-python torch")
 
 # Data files
 DATA_FILE = "data.json"
@@ -110,7 +97,7 @@ def generate_qr_code(ticket_id):
 # ===================== DETECTION =====================
 def detect_with_roboflow(img_path):
     """
-    Hosted API path first; otherwise fallback to YOLO if available.
+    Roboflow Hosted API for damage detection.
     Returns: {is_car, damage, location[], severity, boxes[], version}
     """
     # --- helpers for post-processing ---
@@ -126,119 +113,62 @@ def detect_with_roboflow(img_path):
     HARD_MIN_AREA = 800
     NMS_IOU       = 0.45
 
-    if RF_ENABLED:
-        try:
-            if not os.path.isfile(img_path):
-                raise RuntimeError(f"Cannot read image: {img_path}")
-
-            url = f"https://detect.roboflow.com/{RF_MODEL_ID}"
-            params = {
-                "api_key": RF_API_KEY,
-                "confidence": 0.4,
-                "overlap": 0.5
-            }
-
-            filename, fileobj, mimetype = prepare_image_for_api(img_path)
-            r = requests.post(
-                url, params=params,
-                files={"file": (filename, fileobj, mimetype)},
-                timeout=120
-            )
-
-            if r.status_code != 200:
-                print(f"[RF ERROR] {r.status_code} -> {r.text}")
-                raise RuntimeError(f"Roboflow error {r.status_code}")
-
-            res = r.json()
-            preds = res.get("predictions", [])
-
-            w = res.get("image", {}).get("width")
-            h = res.get("image", {}).get("height")
-            if not (w and h):
-                img = cv2.imread(img_path)
-                if img is not None:
-                    h, w = img.shape[:2]
-
-            boxes, locations = [], set()
-            for p in preds:
-                x, y, ww, hh = p["x"], p["y"], p["width"], p["height"]
-                x1, y1 = int(x - ww/2), int(y - hh/2)
-                x2, y2 = int(x + ww/2), int(y + hh/2)
-                label = str(p.get("class", "damage")).lower()
-                conf  = float(p.get("confidence", 0.0))
-
-                if h and w:
-                    if y < h/3: locations.add("front")
-                    elif y > 2*h/3: locations.add("rear")
-                    if x < w/3 or x > 2*w/3: locations.add("side")
-
-                boxes.append({
-                    "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-                    "label": label, "score": round(conf, 2)
-                })
-
-            boxes = [b for b in boxes if _area(b) >= HARD_MIN_AREA]
-            boxes = sorted(boxes, key=lambda b: b["score"], reverse=True)
-            keep = []
-            for b in boxes:
-                if all(_iou(b, k) < NMS_IOU for k in keep):
-                    keep.append(b)
-            boxes = keep
-
-            damage_found = len(boxes) > 0
-            is_car = bool(damage_found)
-
-            if damage_found:
-                n = len(boxes)
-                severity = "severe" if n >= 4 else "moderate" if n >= 2 else "minor"
-            else:
-                severity = "none"
-
-            return {
-                "is_car": is_car,
-                "damage": damage_found,
-                "location": sorted(list(locations)),
-                "severity": severity,
-                "boxes": boxes,
-                "version": f"roboflow:{RF_MODEL_ID}"
-            }
-
-        except Exception as e:
-            print(f"❌ Roboflow inference error: {e}")
-
-    if not YOLO_ENABLED or yolo_model is None:
-        print(f"⚠️  Skipping detection for {img_path} - no Roboflow and YOLOv8 not available")
+    if not RF_ENABLED:
+        print(f"⚠️  Roboflow disabled - skipping detection for {img_path}")
         return {
             "is_car": True, "damage": False, "severity": "none",
             "location": [], "boxes": [], "version": "disabled"
         }
 
     try:
-        results = yolo_model(img_path, conf=0.25, verbose=False)
-        damage_keywords = ['scratch','dent','crack','broken','damage','rust','collision','shatter']
-        car_keywords    = ['car','vehicle','automobile','sedan','suv','truck']
+        if not os.path.isfile(img_path):
+            raise RuntimeError(f"Cannot read image: {img_path}")
 
-        is_car = False
-        locations = set()
-        boxes = []
+        url = f"https://detect.roboflow.com/{RF_MODEL_ID}"
+        params = {
+            "api_key": RF_API_KEY,
+            "confidence": 0.4,
+            "overlap": 0.5
+        }
 
-        for result in results:
-            img_height, img_width = result.orig_shape
-            for box in result.boxes:
-                x1, y1, x2, y2 = [int(v) for v in box.xyxy[0].tolist()]
-                conf = float(box.conf[0]); cls_id = int(box.cls[0])
-                label = result.names[cls_id].lower()
-                if any(kw in label for kw in car_keywords):
-                    is_car = True
-                if any(kw in label for kw in damage_keywords):
-                    cx, cy = (x1+x2)/2, (y1+y2)/2
-                    if cy < img_height/3: locations.add("front")
-                    elif cy > 2*img_height/3: locations.add("rear")
-                    if cx < img_width/3 or cx > 2*img_width/3: locations.add("side")
-                    boxes.append({
-                        "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-                        "label": label, "score": round(conf, 2)
-                    })
+        filename, fileobj, mimetype = prepare_image_for_api(img_path)
+        r = requests.post(
+            url, params=params,
+            files={"file": (filename, fileobj, mimetype)},
+            timeout=120
+        )
+
+        if r.status_code != 200:
+            print(f"[RF ERROR] {r.status_code} -> {r.text}")
+            raise RuntimeError(f"Roboflow error {r.status_code}")
+
+        res = r.json()
+        preds = res.get("predictions", [])
+
+        w = res.get("image", {}).get("width")
+        h = res.get("image", {}).get("height")
+        if not (w and h):
+            # Fallback to reading image dimensions if not in response
+            im = Image.open(img_path)
+            w, h = im.size
+
+        boxes, locations = [], set()
+        for p in preds:
+            x, y, ww, hh = p["x"], p["y"], p["width"], p["height"]
+            x1, y1 = int(x - ww/2), int(y - hh/2)
+            x2, y2 = int(x + ww/2), int(y + hh/2)
+            label = str(p.get("class", "damage")).lower()
+            conf  = float(p.get("confidence", 0.0))
+
+            if h and w:
+                if y < h/3: locations.add("front")
+                elif y > 2*h/3: locations.add("rear")
+                if x < w/3 or x > 2*w/3: locations.add("side")
+
+            boxes.append({
+                "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+                "label": label, "score": round(conf, 2)
+            })
 
         boxes = [b for b in boxes if _area(b) >= HARD_MIN_AREA]
         boxes = sorted(boxes, key=lambda b: b["score"], reverse=True)
@@ -249,8 +179,7 @@ def detect_with_roboflow(img_path):
         boxes = keep
 
         damage_found = len(boxes) > 0
-        if damage_found and not is_car:
-            is_car = True
+        is_car = bool(damage_found)
 
         if damage_found:
             n = len(boxes)
@@ -259,13 +188,16 @@ def detect_with_roboflow(img_path):
             severity = "none"
 
         return {
-            "is_car": is_car, "damage": damage_found,
-            "location": sorted(list(locations)), "severity": severity,
-            "boxes": boxes, "version": f"yolov8:{os.getenv('YOLO_MODEL_PATH','yolov8n.pt')}"
+            "is_car": is_car,
+            "damage": damage_found,
+            "location": sorted(list(locations)),
+            "severity": severity,
+            "boxes": boxes,
+            "version": f"roboflow:{RF_MODEL_ID}"
         }
 
     except Exception as e:
-        print(f"❌ YOLOv8 error: {e}")
+        print(f"❌ Roboflow inference error: {e}")
         return {
             "is_car": True, "damage": False, "severity": "none",
             "location": [], "boxes": [], "version": "error"
@@ -837,25 +769,6 @@ LOGIN_HTML = '''<!DOCTYPE html>
             box-shadow: 0 3px 10px rgba(179, 0, 0, 0.25);
         }
 
-        .back-btn {
-            width: 100%;
-            margin-top: 12px;
-            padding: 9px 14px;
-            border-radius: 6px;
-            background: #ffffff;
-            border: 1px solid #d1d5db;
-            color: #374151;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background-color 0.15s ease, border-color 0.15s ease;
-        }
-
-        .back-btn:hover {
-            background-color: #f3f4f6;
-            border-color: #9ca3af;
-        }
-
         .hint {
             margin-top: 10px;
             font-size: 11px;
@@ -895,7 +808,6 @@ LOGIN_HTML = '''<!DOCTYPE html>
             </div>
             <button type="submit">Sign In</button>
         </form>
-        <button class="back-btn" onclick="location.href='/'">Back to Dashboard</button>
         <div class="hint">For authorized staff only.</div>
     </div>
 </body>
@@ -2678,8 +2590,6 @@ if __name__ == "__main__":
     print(f"🌐 URL: http://127.0.0.1:{port}")
     print(f"📱 SMS: {'ENABLED ✅' if SMS_ENABLED else 'DISABLED ⚠️'}")
     print(f"🌐 Roboflow: {'ENABLED ✅' if RF_ENABLED else 'DISABLED ⚠️'}")
-    print(f"🤖 YOLOv8: {'ENABLED ✅' if YOLO_ENABLED else 'DISABLED ⚠️  (pip3 install ultralytics)'}")
-    if YOLO_ENABLED: print(f"📦 YOLO Model: {os.getenv('YOLO_MODEL_PATH', 'yolov8n.pt')}")
     if RF_ENABLED:  print(f"📦 RF Model: {RF_MODEL_ID}")
     print("="*70 + "\n")
     app.run(host="0.0.0.0", port=port, debug=True)

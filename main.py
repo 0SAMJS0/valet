@@ -106,6 +106,7 @@ def generate_qr_code(ticket_id):
     qr_path = os.path.join(QRCODE_FOLDER, f"qr_{ticket_id}.png")
     img.save(qr_path)
     return qr_path
+
 # ===================== DETECTION =====================
 def detect_with_roboflow(img_path):
     """
@@ -339,6 +340,7 @@ def login_required(func):
 
 # ===================== ROUTES =====================
 @app.route("/", methods=["GET"])
+@login_required
 def index():
     data = load_json(DATA_FILE)
     runners = load_json(RUNNER_FILE)
@@ -366,6 +368,7 @@ def index():
     )
 
 @app.route("/checkin", methods=["POST"])
+@login_required
 def checkin():
     data = load_json(DATA_FILE)
     ticket_id = generate_ticket_id()
@@ -475,6 +478,7 @@ def checkin():
     return redirect("/")
 
 @app.route("/checkout/<ticket_id>", methods=["POST"])
+@login_required
 def checkout(ticket_id):
     data = load_json(DATA_FILE)
     now = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
@@ -492,10 +496,12 @@ def checkout(ticket_id):
     return redirect("/")
 
 @app.route("/checkout_manual", methods=["POST"])
+@login_required
 def checkout_manual():
     return checkout(request.form.get("ticket_id"))
 
 @app.route("/delete/<ticket_id>", methods=["POST"])
+@login_required
 def delete_ticket(ticket_id):
     data = load_json(DATA_FILE)
     data = [t for t in data if t.get("ticketID") != ticket_id]
@@ -505,6 +511,7 @@ def delete_ticket(ticket_id):
     return redirect("/")
 
 @app.route("/qrcode/<ticket_id>")
+@login_required
 def view_qrcode(ticket_id):
     qr_path = os.path.join(QRCODE_FOLDER, f"qr_{ticket_id}.png")
     if not os.path.exists(qr_path):
@@ -517,6 +524,7 @@ def view_qrcode(ticket_id):
     </body></html>'''
 
 @app.route("/assign_runner/<ticket_id>", methods=["POST"])
+@login_required
 def assign_runner(ticket_id):
     data = load_json(DATA_FILE)
     runner = request.form.get("runnerName")
@@ -529,6 +537,7 @@ def assign_runner(ticket_id):
     return redirect("/")
 
 @app.route("/vehicle_ready/<ticket_id>", methods=["POST"])
+@login_required
 def vehicle_ready(ticket_id):
     data = load_json(DATA_FILE)
     for t in data:
@@ -539,11 +548,13 @@ def vehicle_ready(ticket_id):
     return redirect("/")
 
 @app.route("/runner_clockin")
+@login_required
 def runner_clockin_page():
     runners = load_json(RUNNER_FILE)
     return render_template_string(RUNNER_PAGE_HTML, runners=runners)
 
 @app.route("/clockin", methods=["POST"])
+@login_required
 def clockin():
     runners = load_json(RUNNER_FILE)
     name = request.form.get("runnerName", "").strip()
@@ -554,6 +565,7 @@ def clockin():
     return redirect("/runner_clockin")
 
 @app.route("/clockout", methods=["POST"])
+@login_required
 def clockout():
     runners = load_json(RUNNER_FILE)
     name = request.form.get("runnerName", "").strip()
@@ -575,7 +587,7 @@ def admin_login():
         u, p = request.form.get("username"), request.form.get("password")
         if any(a.get("username") == u and a.get("password") == p for a in admins):
             session["admin_logged_in"] = True
-            return redirect("/admin")
+            return redirect("/")
         return "<h3 style='color:red;text-align:center;'>Invalid credentials</h3>" + LOGIN_HTML
     return LOGIN_HTML
 
@@ -583,7 +595,7 @@ def admin_login():
 @login_required
 def admin_logout():
     session.pop("admin_logged_in", None)
-    return redirect("/")
+    return redirect("/admin_login")
 
 @app.route("/admin")
 @login_required
@@ -599,22 +611,27 @@ def admin_announcement():
     return redirect("/admin")
 
 @app.route("/announcement_page")
+@login_required
 def announcement_page():
     return render_template_string(ANNOUNCEMENT_HTML)
 
 @app.route("/announcement")
+@login_required
 def get_announcement():
     return jsonify(load_json(ANNOUNCEMENT_FILE))
 
 @app.route("/shift_portal")
+@login_required
 def shift_portal():
     return SHIFT_PORTAL_HTML
 
 @app.route("/shifts")
+@login_required
 def get_shifts():
     return jsonify(load_json(SHIFTS_FILE))
 
 @app.route("/add_shift", methods=["POST"])
+@login_required
 def add_shift():
     data = load_json(SHIFTS_FILE)
     payload = request.get_json(force=True)
@@ -624,6 +641,7 @@ def add_shift():
     return jsonify({"ok": True})
 
 @app.route("/pick_shift", methods=["POST"])
+@login_required
 def pick_shift():
     data = load_json(SHIFTS_FILE)
     payload = request.get_json(force=True)
@@ -637,6 +655,7 @@ def pick_shift():
     return jsonify({"error": "Not available"}), 400
 
 @app.route("/drop_shift", methods=["POST"])
+@login_required
 def drop_shift():
     data = load_json(SHIFTS_FILE)
     payload = request.get_json(force=True)
@@ -650,6 +669,7 @@ def drop_shift():
     return jsonify({"error": "Cannot drop"}), 400
 
 @app.route("/delete_shift", methods=["POST"])
+@login_required
 def delete_shift():
     data = load_json(SHIFTS_FILE)
     sid = int(request.get_json(force=True).get("id"))
@@ -658,6 +678,7 @@ def delete_shift():
     return jsonify({"ok": True})
 
 @app.route("/calendar")
+@login_required
 def calendar_view():
     return CALENDAR_HTML
 
@@ -811,8 +832,8 @@ LOGIN_HTML = '''<!DOCTYPE html>
             </div>
             <button type="submit">Sign In</button>
         </form>
-        <button class="back-btn" onclick="location.href='/'">Back to Dashboard</button>
-        <div class="hint">For authorized staff only.</div>
+        <button class="back-btn" onclick="location.href='/admin_login'">Refresh</button>
+        <div class="hint">Default login: <strong>admin</strong> / <strong>valet123</strong></div>
     </div>
 </body>
 </html>'''
@@ -2379,7 +2400,7 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
                 <h1>Valet Operations System</h1>
                 <h2>Moffitt Cancer Center · Red Ramp Valet</h2>
             </div>
-            <a href="/admin_login" class="admin-link">Administrator</a>
+            <a href="/admin_login" class="admin-link">Logout</a>
         </div>
     </div>
 

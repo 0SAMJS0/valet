@@ -123,8 +123,8 @@ def detect_with_roboflow(img_path):
         return inter / ua
 
     # thresholds (tune if needed)
-    HARD_MIN_AREA = 800      # pixels; try 500–2000 depending on image size
-    NMS_IOU       = 0.45     # suppress near-duplicates
+    HARD_MIN_AREA = 800
+    NMS_IOU       = 0.45
 
     if RF_ENABLED:
         try:
@@ -134,11 +134,10 @@ def detect_with_roboflow(img_path):
             url = f"https://detect.roboflow.com/{RF_MODEL_ID}"
             params = {
                 "api_key": RF_API_KEY,
-                "confidence": 0.4,   # raised from 0.2 to reduce noise
+                "confidence": 0.4,
                 "overlap": 0.5
             }
 
-            # Downscale and send compressed JPEG bytes to avoid 413 and speed up
             filename, fileobj, mimetype = prepare_image_for_api(img_path)
             r = requests.post(
                 url, params=params,
@@ -153,7 +152,6 @@ def detect_with_roboflow(img_path):
             res = r.json()
             preds = res.get("predictions", [])
 
-            # image size for rough location bucketing
             w = res.get("image", {}).get("width")
             h = res.get("image", {}).get("height")
             if not (w and h):
@@ -170,7 +168,6 @@ def detect_with_roboflow(img_path):
                 conf  = float(p.get("confidence", 0.0))
 
                 if h and w:
-                    # rough location
                     if y < h/3: locations.add("front")
                     elif y > 2*h/3: locations.add("rear")
                     if x < w/3 or x > 2*w/3: locations.add("side")
@@ -180,7 +177,6 @@ def detect_with_roboflow(img_path):
                     "label": label, "score": round(conf, 2)
                 })
 
-            # --- POST-PROCESS: tiny box filter + NMS ---
             boxes = [b for b in boxes if _area(b) >= HARD_MIN_AREA]
             boxes = sorted(boxes, key=lambda b: b["score"], reverse=True)
             keep = []
@@ -190,9 +186,8 @@ def detect_with_roboflow(img_path):
             boxes = keep
 
             damage_found = len(boxes) > 0
-            is_car = bool(damage_found)  # treat any detection as car context
+            is_car = bool(damage_found)
 
-            # per-image severity (final severity is computed at ticket level)
             if damage_found:
                 n = len(boxes)
                 severity = "severe" if n >= 4 else "moderate" if n >= 2 else "minor"
@@ -211,7 +206,6 @@ def detect_with_roboflow(img_path):
         except Exception as e:
             print(f"❌ Roboflow inference error: {e}")
 
-    # YOLO fallback
     if not YOLO_ENABLED or yolo_model is None:
         print(f"⚠️  Skipping detection for {img_path} - no Roboflow and YOLOv8 not available")
         return {
@@ -234,7 +228,8 @@ def detect_with_roboflow(img_path):
                 x1, y1, x2, y2 = [int(v) for v in box.xyxy[0].tolist()]
                 conf = float(box.conf[0]); cls_id = int(box.cls[0])
                 label = result.names[cls_id].lower()
-                if any(kw in label for kw in car_keywords): is_car = True
+                if any(kw in label for kw in car_keywords):
+                    is_car = True
                 if any(kw in label for kw in damage_keywords):
                     cx, cy = (x1+x2)/2, (y1+y2)/2
                     if cy < img_height/3: locations.add("front")
@@ -245,7 +240,6 @@ def detect_with_roboflow(img_path):
                         "label": label, "score": round(conf, 2)
                     })
 
-        # --- POST-PROCESS: tiny box filter + NMS ---
         boxes = [b for b in boxes if _area(b) >= HARD_MIN_AREA]
         boxes = sorted(boxes, key=lambda b: b["score"], reverse=True)
         keep = []
@@ -307,7 +301,7 @@ def send_sms(to, message):
 app = Flask(__name__)
 app.secret_key = os.getenv("APP_SECRET_KEY", "valet_secret_2024")
 
-# 64 MB total per request (fixes 413 for 4 large photos)
+# 64 MB total per request
 app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024
 
 # Ensure folders exist
@@ -338,8 +332,17 @@ def login_required(func):
         return func(*args, **kwargs)
     return wrapper
 
+def user_login_required(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not session.get("user_logged_in"):
+            return redirect(url_for("login"))
+        return func(*args, **kwargs)
+    return wrapper
+
 # ===================== ROUTES =====================
 @app.route("/", methods=["GET"])
+@user_login_required
 def index():
     data = load_json(DATA_FILE)
     runners = load_json(RUNNER_FILE)
@@ -356,7 +359,8 @@ def index():
     end = start + per_page
     paged_data = data[start:end]
 
-    return render_template_string(MAIN_PAGE_HTML,
+    return render_template_string(
+        MAIN_PAGE_HTML,
         data=paged_data,
         runners=runners,
         keys_in_system=keys_in_system,
@@ -366,7 +370,39 @@ def index():
         message_type=message_type
     )
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+
+        # Staff login for accessing the main dashboard
+        if username == "admin" and password == "valet123":
+            session["user_logged_in"] = True
+            return redirect(url_for("index"))
+
+        error = "Invalid credentials. Please try again."
+        return render_template_string(
+            LOGIN_HTML,
+            error=error,
+            heading="Staff Login",
+            subheading="Sign in to access the valet dashboard."
+        )
+
+    return render_template_string(
+        LOGIN_HTML,
+        error=None,
+        heading="Staff Login",
+        subheading="Sign in to access the valet dashboard."
+    )
+
+@app.route("/logout")
+def logout():
+    session.pop("user_logged_in", None)
+    return redirect(url_for("login"))
+
 @app.route("/checkin", methods=["POST"])
+@user_login_required
 def checkin():
     data = load_json(DATA_FILE)
     ticket_id = generate_ticket_id()
@@ -390,7 +426,6 @@ def checkin():
         "damageDetections": []
     }
 
-    # Gather all uploaded files from supported fields
     uploaded_files = []
     for field in ("damageImages", "capturedImages"):
         if field in request.files:
@@ -398,7 +433,6 @@ def checkin():
                 if f and f.filename:
                     uploaded_files.append(f)
 
-    # Enforce EXACTLY 4 photos
     if len(uploaded_files) != 4:
         session["message"] = f"❌ Please upload exactly 4 photos (you provided {len(uploaded_files)})."
         session["message_type"] = "warning"
@@ -408,7 +442,6 @@ def checkin():
     union_locations = set()
     model_version_used = ""
 
-    # Save originals, run detection, save annotated copies
     for idx, img in enumerate(uploaded_files, start=1):
         safe_name = f"{ticket_id}_{idx}_{img.filename}"
         img_path = os.path.join(UPLOAD_FOLDER, safe_name)
@@ -428,7 +461,6 @@ def checkin():
             annotate_image(img_path, boxes, ann_path)
             web_ann = f"/static/uploads/{os.path.basename(ann_path)}"
         else:
-            # keep original if no boxes, for consistent gallery
             web_ann = web_path
         new_ticket["damageAnnotated"].append(web_ann)
 
@@ -441,7 +473,6 @@ def checkin():
             "boxes": boxes,
         })
 
-    # Overall severity by TOTAL detections (your rule)
     if total_detections > 6:
         overall_severity = "severe"
     elif 3 <= total_detections <= 6:
@@ -463,7 +494,6 @@ def checkin():
     save_json(DATA_FILE, data)
     generate_qr_code(ticket_id)
 
-    # SMS (best-effort)
     try:
         qr_url = url_for('static', filename=f"qrcodes/qr_{ticket_id}.png", _external=True)
         msg = f"Hi {new_ticket['customerName']}! Vehicle checked in. Ticket #{ticket_id}. QR: {qr_url}"
@@ -476,6 +506,7 @@ def checkin():
     return redirect("/")
 
 @app.route("/checkout/<ticket_id>", methods=["POST"])
+@user_login_required
 def checkout(ticket_id):
     data = load_json(DATA_FILE)
     now = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
@@ -493,10 +524,12 @@ def checkout(ticket_id):
     return redirect("/")
 
 @app.route("/checkout_manual", methods=["POST"])
+@user_login_required
 def checkout_manual():
     return checkout(request.form.get("ticket_id"))
 
 @app.route("/delete/<ticket_id>", methods=["POST"])
+@user_login_required
 def delete_ticket(ticket_id):
     data = load_json(DATA_FILE)
     data = [t for t in data if t.get("ticketID") != ticket_id]
@@ -506,6 +539,7 @@ def delete_ticket(ticket_id):
     return redirect("/")
 
 @app.route("/qrcode/<ticket_id>")
+@user_login_required
 def view_qrcode(ticket_id):
     qr_path = os.path.join(QRCODE_FOLDER, f"qr_{ticket_id}.png")
     if not os.path.exists(qr_path):
@@ -518,6 +552,7 @@ def view_qrcode(ticket_id):
     </body></html>'''
 
 @app.route("/assign_runner/<ticket_id>", methods=["POST"])
+@user_login_required
 def assign_runner(ticket_id):
     data = load_json(DATA_FILE)
     runner = request.form.get("runnerName")
@@ -530,6 +565,7 @@ def assign_runner(ticket_id):
     return redirect("/")
 
 @app.route("/vehicle_ready/<ticket_id>", methods=["POST"])
+@user_login_required
 def vehicle_ready(ticket_id):
     data = load_json(DATA_FILE)
     for t in data:
@@ -540,11 +576,13 @@ def vehicle_ready(ticket_id):
     return redirect("/")
 
 @app.route("/runner_clockin")
+@user_login_required
 def runner_clockin_page():
     runners = load_json(RUNNER_FILE)
     return render_template_string(RUNNER_PAGE_HTML, runners=runners)
 
 @app.route("/clockin", methods=["POST"])
+@user_login_required
 def clockin():
     runners = load_json(RUNNER_FILE)
     name = request.form.get("runnerName", "").strip()
@@ -555,6 +593,7 @@ def clockin():
     return redirect("/runner_clockin")
 
 @app.route("/clockout", methods=["POST"])
+@user_login_required
 def clockout():
     runners = load_json(RUNNER_FILE)
     name = request.form.get("runnerName", "").strip()
@@ -569,19 +608,31 @@ def clockout():
     save_json(RUNNER_FILE, runners)
     return redirect("/runner_clockin")
 
-# --------- FIXED LOGIN ROUTE WITH INLINE ERROR MESSAGE ----------
 @app.route("/admin_login", methods=["GET", "POST"])
 def admin_login():
-    error = None
     if request.method == "POST":
         admins = load_json(ADMIN_FILE)
-        u, p = request.form.get("username"), request.form.get("password")
+        u = request.form.get("username", "").strip()
+        p = request.form.get("password", "").strip()
+
         if any(a.get("username") == u and a.get("password") == p for a in admins):
             session["admin_logged_in"] = True
-            return redirect("/admin")
-        # wrong credentials
-        error = "Invalid username or password"
-    return render_template_string(LOGIN_HTML, error=error)
+            return redirect(url_for("admin_dashboard"))
+
+        error = "Invalid credentials. Please try again."
+        return render_template_string(
+            LOGIN_HTML,
+            error=error,
+            heading="Admin Login",
+            subheading="Sign in to manage valet operations and announcements."
+        )
+
+    return render_template_string(
+        LOGIN_HTML,
+        error=None,
+        heading="Admin Login",
+        subheading="Sign in to manage valet operations and announcements."
+    )
 
 @app.route("/admin_logout")
 @login_required
@@ -603,22 +654,27 @@ def admin_announcement():
     return redirect("/admin")
 
 @app.route("/announcement_page")
+@user_login_required
 def announcement_page():
     return render_template_string(ANNOUNCEMENT_HTML)
 
 @app.route("/announcement")
+@user_login_required
 def get_announcement():
     return jsonify(load_json(ANNOUNCEMENT_FILE))
 
 @app.route("/shift_portal")
+@user_login_required
 def shift_portal():
     return SHIFT_PORTAL_HTML
 
 @app.route("/shifts")
+@user_login_required
 def get_shifts():
     return jsonify(load_json(SHIFTS_FILE))
 
 @app.route("/add_shift", methods=["POST"])
+@user_login_required
 def add_shift():
     data = load_json(SHIFTS_FILE)
     payload = request.get_json(force=True)
@@ -628,6 +684,7 @@ def add_shift():
     return jsonify({"ok": True})
 
 @app.route("/pick_shift", methods=["POST"])
+@user_login_required
 def pick_shift():
     data = load_json(SHIFTS_FILE)
     payload = request.get_json(force=True)
@@ -641,6 +698,7 @@ def pick_shift():
     return jsonify({"error": "Not available"}), 400
 
 @app.route("/drop_shift", methods=["POST"])
+@user_login_required
 def drop_shift():
     data = load_json(SHIFTS_FILE)
     payload = request.get_json(force=True)
@@ -654,6 +712,7 @@ def drop_shift():
     return jsonify({"error": "Cannot drop"}), 400
 
 @app.route("/delete_shift", methods=["POST"])
+@user_login_required
 def delete_shift():
     data = load_json(SHIFTS_FILE)
     sid = int(request.get_json(force=True).get("id"))
@@ -662,6 +721,7 @@ def delete_shift():
     return jsonify({"ok": True})
 
 @app.route("/calendar")
+@user_login_required
 def calendar_view():
     return CALENDAR_HTML
 
@@ -676,7 +736,7 @@ LOGIN_HTML = '''<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login - Valet Operations System</title>
+    <title>{{ heading or "Login" }} - Valet Operations System</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -752,9 +812,15 @@ LOGIN_HTML = '''<!DOCTYPE html>
             box-shadow: 0 0 0 1px rgba(179, 0, 0, 0.12);
         }
 
+        .error-message {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #b91c1c;
+        }
+
         button[type="submit"] {
             width: 100%;
-            margin-top: 8px;
+            margin-top: 12px;
             padding: 10px 14px;
             border-radius: 6px;
             border: none;
@@ -796,41 +862,37 @@ LOGIN_HTML = '''<!DOCTYPE html>
             color: #9ca3af;
             text-align: center;
         }
-
-        .error-box {
-            margin-top: 10px;
-            padding: 8px 10px;
-            border-radius: 6px;
-            background: #fef2f2;
-            color: #b91c1c;
-            font-size: 12px;
-            border: 1px solid #fecaca;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
     <div class="login-container">
         <div class="login-header">
-            <h2>Admin Login</h2>
-            <p>Sign in to manage valet operations and announcements.</p>
+            <h2>{{ heading or "Login" }}</h2>
+            <p>{{ subheading or "Sign in to continue." }}</p>
         </div>
         <form method="POST">
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" required autofocus placeholder="Enter your username">
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    required
+                    autofocus
+                    placeholder="Enter your username">
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required placeholder="Enter your password">
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                    placeholder="Enter your password">
+                {% if error %}
+                <div class="error-message">{{ error }}</div>
+                {% endif %}
             </div>
-
-            {% if error %}
-            <div class="error-box">
-                {{ error }}
-            </div>
-            {% endif %}
-
             <button type="submit">Sign In</button>
         </form>
         <button class="back-btn" onclick="location.href='/'">Back to Dashboard</button>

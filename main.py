@@ -620,6 +620,150 @@ def get_damage_report(ticket_id):
             return jsonify({"success": True, "ticket": t})
     return jsonify({"success": False, "error": "Ticket not found"}), 404
 
+@app.route("/send_damage_report_email/<ticket_id>", methods=["POST"])
+@user_login_required
+def send_damage_report_email(ticket_id):
+    try:
+        # Get email from request
+        email_data = request.get_json()
+        recipient_email = email_data.get("email", "").strip()
+        
+        if not recipient_email or "@" not in recipient_email:
+            return jsonify({"success": False, "error": "Invalid email address"}), 400
+        
+        # Get ticket data
+        data = load_json(DATA_FILE)
+        ticket = None
+        for t in data:
+            if t.get("ticketID") == ticket_id:
+                ticket = t
+                break
+        
+        if not ticket:
+            return jsonify({"success": False, "error": "Ticket not found"}), 404
+        
+        # Create email content
+        damage_summary = ticket.get("damageSummary", {})
+        subject = f"Vehicle Damage Report - Ticket #{ticket_id}"
+        
+        # Build HTML email body
+        email_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .header {{ background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; padding: 20px; text-align: center; }}
+        .content {{ padding: 20px; }}
+        .info-box {{ background: #f8fafc; border: 2px solid #e2e8f0; padding: 15px; margin: 10px 0; border-radius: 8px; }}
+        .info-row {{ margin: 8px 0; }}
+        .label {{ font-weight: bold; color: #475569; }}
+        .value {{ color: #1e293b; }}
+        .damage-badge {{ display: inline-block; padding: 8px 16px; border-radius: 12px; font-weight: bold; margin: 10px 0; }}
+        .damage-minor {{ background: #fef3c7; color: #92400e; }}
+        .damage-moderate {{ background: #fed7aa; color: #9a3412; }}
+        .damage-severe {{ background: #fecaca; color: #991b1b; }}
+        .damage-none {{ background: #dcfce7; color: #166534; }}
+        .photo-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0; }}
+        .photo-item {{ border: 2px solid #e2e8f0; padding: 10px; text-align: center; }}
+        .photo-item img {{ width: 100%; max-width: 300px; }}
+        .footer {{ text-align: center; padding: 20px; background: #f8fafc; color: #64748b; font-size: 12px; margin-top: 30px; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Vehicle Damage Assessment Report</h1>
+        <p>Valet Operations - Red Ramp Service</p>
+    </div>
+    
+    <div class="content">
+        <h2>Ticket Information</h2>
+        <div class="info-box">
+            <div class="info-row"><span class="label">Ticket Number:</span> <span class="value">#{ticket.get("ticketID", "")}</span></div>
+            <div class="info-row"><span class="label">Customer Name:</span> <span class="value">{ticket.get("customerName", "")}</span></div>
+            <div class="info-row"><span class="label">License Plate:</span> <span class="value">{ticket.get("licensePlate", "")}</span></div>
+            <div class="info-row"><span class="label">Vehicle:</span> <span class="value">{ticket.get("carMake", "")} - {ticket.get("carColor", "")}</span></div>
+            <div class="info-row"><span class="label">Check-In Time:</span> <span class="value">{ticket.get("checkInTime", "")}</span></div>
+            <div class="info-row"><span class="label">Phone:</span> <span class="value">{ticket.get("customerPhone", "")}</span></div>
+        </div>
+        
+        <h2>Damage Assessment</h2>
+        <div class="info-box">
+            <div class="info-row">
+                <span class="label">Status:</span> 
+                <span class="damage-badge damage-{damage_summary.get("severity", "none")}">
+                    {damage_summary.get("severity", "none").upper()}
+                </span>
+            </div>
+            <div class="info-row"><span class="label">Total Detections:</span> <span class="value">{damage_summary.get("totalDetections", 0)}</span></div>
+            <div class="info-row"><span class="label">Locations:</span> <span class="value">{", ".join(damage_summary.get("location", [])).upper() if damage_summary.get("location") else "N/A"}</span></div>
+            <div class="info-row"><span class="label">AI Model:</span> <span class="value">{damage_summary.get("modelVersion", "N/A")}</span></div>
+        </div>
+        
+        {"<h2>Inspector Notes</h2><div class='info-box'>" + ticket.get("notes", "No notes provided") + "</div>" if ticket.get("notes") else ""}
+        
+        <h2>Important</h2>
+        <div class="info-box" style="border-left: 4px solid #dc2626;">
+            <p>This is an automated damage assessment report. Please review the attached photos carefully. If you have any questions or concerns about this report, please contact our valet service immediately.</p>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p><strong>Red Ramp Valet Service</strong></p>
+        <p>This report was generated on {datetime.datetime.now().strftime("%B %d, %Y at %I:%M %p")}</p>
+        <p>For questions, please contact us at your earliest convenience.</p>
+    </div>
+</body>
+</html>
+"""
+        
+        # Use basic SMTP to send email
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        # Email configuration (you'll need to set these environment variables)
+        SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+        SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+        SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+        FROM_EMAIL = os.getenv("FROM_EMAIL", SMTP_USERNAME)
+        
+        if not SMTP_USERNAME or not SMTP_PASSWORD:
+            return jsonify({
+                "success": False, 
+                "error": "Email service not configured. Please set SMTP_USERNAME and SMTP_PASSWORD environment variables."
+            }), 500
+        
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = FROM_EMAIL
+        msg['To'] = recipient_email
+        
+        # Attach HTML body
+        html_part = MIMEText(email_body, 'html')
+        msg.attach(html_part)
+        
+        # Send email
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.send_message(msg)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Report sent to {recipient_email}"
+        })
+        
+    except Exception as e:
+        print(f"Email error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 @app.route("/calendar")
 @user_login_required
 def calendar_view():
@@ -1320,18 +1464,20 @@ DAMAGE_CHECK_HTML = '''
             color: white;
         }
         .card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
         .card h2 {
-            font-size: 20px;
+            font-size: 24px;
             color: #1e293b;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 2px solid #dc2626;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 3px solid #dc2626;
+            font-weight: 700;
         }
         .search-box {
             display: flex;
@@ -1340,22 +1486,23 @@ DAMAGE_CHECK_HTML = '''
         }
         .search-box input {
             flex: 1;
-            padding: 14px 16px;
+            padding: 16px 20px;
             border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 15px;
+            border-radius: 10px;
+            font-size: 16px;
             transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .search-box input:focus {
             outline: none;
             border-color: #dc2626;
-            box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
+            box-shadow: 0 0 0 4px rgba(220,38,38,0.1);
         }
         .btn {
-            padding: 14px 28px;
+            padding: 16px 32px;
             border: none;
-            border-radius: 8px;
-            font-size: 15px;
+            border-radius: 10px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
@@ -1363,6 +1510,7 @@ DAMAGE_CHECK_HTML = '''
         .btn-primary {
             background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
+            box-shadow: 0 4px 6px rgba(220,38,38,0.2);
         }
         .btn-primary:hover {
             transform: translateY(-2px);
@@ -1376,29 +1524,37 @@ DAMAGE_CHECK_HTML = '''
         }
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
         }
         .info-item {
-            background: white;
-            padding: 16px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            padding: 24px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .info-item:hover {
+            border-color: #dc2626;
+            box-shadow: 0 4px 12px rgba(220,38,38,0.1);
+            transform: translateY(-2px);
         }
         .info-item label {
             display: block;
-            font-size: 12px;
-            font-weight: 600;
-            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+            color: #dc2626;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 6px;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
         }
         .info-item .value {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
             color: #1e293b;
+            line-height: 1.4;
         }
         .damage-badge {
             display: inline-block;
@@ -1413,115 +1569,147 @@ DAMAGE_CHECK_HTML = '''
         .damage-severe { background: #fecaca; color: #991b1b; }
         .damage-none { background: #dcfce7; color: #166534; }
         .photo-section {
-            margin-top: 24px;
+            margin-top: 30px;
+        }
+        .photo-section h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 16px;
         }
         .photo-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-top: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
         }
         .photo-item {
             border: 2px solid #e2e8f0;
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
             background: white;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .photo-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            border-color: #dc2626;
         }
         .photo-item img {
             width: 100%;
             display: block;
         }
         .photo-label {
-            padding: 8px;
+            padding: 12px;
             background: #f8fafc;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
             color: #475569;
             text-align: center;
         }
         .detection-details {
             background: white;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            margin-top: 16px;
+            padding: 24px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .detection-details h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #1e293b;
         }
         .detection-item {
-            padding: 12px;
+            padding: 16px;
             background: #f8fafc;
             border-left: 4px solid #dc2626;
-            margin-bottom: 12px;
-            border-radius: 4px;
+            margin-bottom: 16px;
+            border-radius: 6px;
         }
         .detection-item h4 {
-            font-size: 14px;
+            font-size: 15px;
             color: #1e293b;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            font-weight: 600;
         }
         .detection-item p {
-            font-size: 13px;
+            font-size: 14px;
             color: #64748b;
-            margin: 4px 0;
+            margin: 6px 0;
         }
         .alert {
-            padding: 16px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+            padding: 18px 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
             font-weight: 500;
+            font-size: 15px;
+            border-left: 4px solid;
         }
         .alert-error {
             background: #fee2e2;
             color: #991b1b;
-            border-left: 4px solid #dc2626;
+            border-left-color: #dc2626;
         }
         .report-section {
             background: white;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            margin-top: 20px;
+            padding: 28px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            margin-top: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .report-section h3 {
-            font-size: 18px;
+            font-size: 22px;
             color: #1e293b;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 2px solid #dc2626;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 3px solid #dc2626;
+            font-weight: 700;
         }
         .report-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 12px;
+            margin-top: 16px;
         }
         .report-table th,
         .report-table td {
-            padding: 12px;
+            padding: 16px;
             text-align: left;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 2px solid #e2e8f0;
+            font-size: 15px;
         }
         .report-table th {
             background: #f8fafc;
-            font-weight: 600;
+            font-weight: 700;
             color: #475569;
-            font-size: 13px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .report-table td {
             color: #334155;
-            font-size: 14px;
+            font-size: 15px;
         }
         .print-btn {
             margin-top: 20px;
             background: #475569;
             color: white;
-            padding: 12px 28px;
+            padding: 16px 36px;
             border: none;
-            border-radius: 8px;
-            font-size: 15px;
+            border-radius: 12px;
+            font-size: 17px;
             font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .print-btn:hover {
             background: #334155;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
         }
         @media print {
             .btn-back, .search-box, .print-btn, .nav-bar { display: none !important; }
@@ -1651,11 +1839,10 @@ DAMAGE_CHECK_HTML = '''
 
                 <div style="text-align: center;">
                     <button class="print-btn" onclick="window.print()">🖨️ Print Report</button>
-                    <button class="print-btn" onclick="showIncidentForm()" style="background: #dc2626; margin-left: 12px;">📋 Generate Incident Report</button>
+                    <button class="print-btn" onclick="downloadReport()" style="background: #16a34a; margin-left: 12px;">📥 Download Report</button>
+                    <button class="print-btn" onclick="emailReport()" style="background: #2563eb; margin-left: 12px;">📧 Email Report</button>
                 </div>
             </div>
-
-            <!-- EDITABLE INCIDENT REPORT FORM -->
             <div id="incidentForm" class="incident-form" style="display: none;">
                 <div class="card" style="border: 3px solid #dc2626;">
                     <div style="text-align: right; margin-bottom: 20px;">
@@ -3133,15 +3320,17 @@ MAIN_PAGE_HTML = '''
         }
         .damage-badge {
             display: inline-block;
-            padding: 6px 14px;
-            border-radius: 12px;
-            font-size: 12px;
+            padding: 12px 24px;
+            border-radius: 16px;
+            font-size: 16px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .damage-badge:hover {
             transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
         .damage-minor { background: #fef3c7; color: #92400e; }
         .damage-moderate { background: #fed7aa; color: #9a3412; }
@@ -3523,6 +3712,113 @@ MAIN_PAGE_HTML = '''
             if (event.target == qrModal) {
                 closeQRModal();
             }
+        }
+
+        // Download report as HTML
+        function downloadReport() {
+            if (!currentTicketId) {
+                alert('Please search for a ticket first');
+                return;
+            }
+
+            // Create a downloadable HTML file
+            const reportContent = document.getElementById('damageReport').cloneNode(true);
+            
+            // Create full HTML document
+            const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Damage Report - Ticket ${currentTicketId}</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+        .card h2 { font-size: 20px; color: #1e293b; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #dc2626; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .info-item { background: white; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .info-item label { display: block; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 6px; }
+        .info-item .value { font-size: 16px; font-weight: 600; color: #1e293b; }
+        .damage-badge { display: inline-block; padding: 8px 16px; border-radius: 12px; font-size: 14px; font-weight: 700; margin-top: 8px; }
+        .damage-minor { background: #fef3c7; color: #92400e; }
+        .damage-moderate { background: #fed7aa; color: #9a3412; }
+        .damage-severe { background: #fecaca; color: #991b1b; }
+        .damage-none { background: #dcfce7; color: #166534; }
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; }
+        .photo-item { border: 2px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white; }
+        .photo-item img { width: 100%; display: block; }
+        .photo-label { padding: 8px; background: #f8fafc; font-size: 13px; font-weight: 600; color: #475569; text-align: center; }
+        .detection-details { background: white; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 16px; }
+        .detection-item { padding: 12px; background: #f8fafc; border-left: 4px solid #dc2626; margin-bottom: 12px; border-radius: 4px; }
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        .report-table th, .report-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .report-table th { background: #f8fafc; font-weight: 600; color: #475569; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center; color: #dc2626;">Damage Assessment Report</h1>
+    <h2 style="text-align: center; color: #64748b; margin-bottom: 30px;">Ticket #${currentTicketId}</h2>
+    ${reportContent.innerHTML}
+</body>
+</html>`;
+
+            // Create blob and download
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Damage_Report_${currentTicketId}_${new Date().toISOString().split('T')[0]}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Email report
+        function emailReport() {
+            if (!currentTicketId) {
+                alert('Please search for a ticket first');
+                return;
+            }
+
+            const email = prompt('Enter the customer email address:');
+            if (!email || !email.includes('@')) {
+                if (email !== null) {
+                    alert('Please enter a valid email address');
+                }
+                return;
+            }
+
+            // Show loading message
+            const originalBtn = event.target;
+            const originalText = originalBtn.textContent;
+            originalBtn.textContent = '📧 Sending...';
+            originalBtn.disabled = true;
+
+            // Send email request
+            fetch(`/send_damage_report_email/${currentTicketId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: email })
+            })
+            .then(r => r.json())
+            .then(data => {
+                originalBtn.textContent = originalText;
+                originalBtn.disabled = false;
+                if (data.success) {
+                    alert(`✅ Report sent successfully to ${email}!`);
+                } else {
+                    alert(`❌ Error: ${data.error || 'Failed to send email'}`);
+                }
+            })
+            .catch(err => {
+                originalBtn.textContent = originalText;
+                originalBtn.disabled = false;
+                alert('❌ Error sending email. Please try again.');
+                console.error(err);
+            });
         }
     </script>
 </body>

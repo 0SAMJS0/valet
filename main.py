@@ -1434,6 +1434,13 @@ INCIDENT_REPORT_HTML = '''
             .print-btn { display: none; }
             body { padding: 0; }
             .report-container { border: none; }
+            img { 
+                max-width: 100%; 
+                page-break-inside: avoid;
+            }
+            .page-break-before {
+                page-break-before: always;
+            }
         }
     </style>
 </head>
@@ -1604,6 +1611,52 @@ INCIDENT_REPORT_HTML = '''
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div style="margin: 30px 0; page-break-before: always;">
+            <div class="section-title" style="font-size: 16px; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+                PHOTOGRAPHIC EVIDENCE OF DAMAGE
+            </div>
+            
+            <div style="margin-bottom: 30px;">
+                <p style="font-weight: bold; margin-bottom: 15px; font-size: 13px;">Original Photos (Captured at Check-In):</p>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                    {% for img in ticket.damageImages %}
+                    <div style="border: 2px solid #000; padding: 10px; text-align: center;">
+                        <img src="{{ img }}" style="width: 100%; max-width: 100%; height: auto; display: block; margin-bottom: 8px;" alt="Damage Photo {{ loop.index }}">
+                        <p style="font-size: 11px; font-weight: bold;">Photo {{ loop.index }} - Original</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div>
+                <p style="font-weight: bold; margin-bottom: 15px; font-size: 13px;">AI-Annotated Photos (Damage Highlighted in Red):</p>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                    {% for img in ticket.damageAnnotated %}
+                    <div style="border: 2px solid #000; padding: 10px; text-align: center;">
+                        <img src="{{ img }}" style="width: 100%; max-width: 100%; height: auto; display: block; margin-bottom: 8px;" alt="Annotated Photo {{ loop.index }}">
+                        <p style="font-size: 11px; font-weight: bold;">Photo {{ loop.index }} - AI Analysis</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if ticket.damageDetections %}
+            <div style="margin-top: 20px; border: 1px solid #000; padding: 15px;">
+                <p style="font-weight: bold; margin-bottom: 10px; font-size: 13px;">AI Detection Summary:</p>
+                {% for det in ticket.damageDetections %}
+                    {% if det.boxes and det.boxes|length > 0 %}
+                    <div style="margin-bottom: 10px; padding: 10px; background: #f5f5f5; border-left: 3px solid #dc2626;">
+                        <p style="font-size: 11px; margin: 3px 0;"><strong>Photo {{ loop.index }}:</strong> {{ det.boxes|length }} detection(s)</p>
+                        {% for box in det.boxes %}
+                        <p style="font-size: 10px; margin: 2px 0 2px 15px;">• {{ box.label|capitalize }} ({{ (box.score * 100)|round(1) }}% confidence)</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
 
         <div class="terms">

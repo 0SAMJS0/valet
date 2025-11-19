@@ -606,6 +606,20 @@ def delete_shift():
     save_json(SHIFTS_FILE, data)
     return jsonify({"ok": True})
 
+@app.route("/damage_check")
+@user_login_required
+def damage_check_page():
+    return render_template_string(DAMAGE_CHECK_HTML)
+
+@app.route("/get_damage_report/<ticket_id>")
+@user_login_required
+def get_damage_report(ticket_id):
+    data = load_json(DATA_FILE)
+    for t in data:
+        if t.get("ticketID") == ticket_id:
+            return jsonify({"success": True, "ticket": t})
+    return jsonify({"success": False, "error": "Ticket not found"}), 404
+
 @app.route("/calendar")
 @user_login_required
 def calendar_view():
@@ -1201,6 +1215,516 @@ SHIFT_PORTAL_HTML = '''
         }
 
         loadShifts();
+    </script>
+</body>
+</html>
+'''
+
+# ===================== DAMAGE CHECK HTML =====================
+DAMAGE_CHECK_HTML = '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Damage Check - Valet Operations</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 8px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px; }
+        .btn-back {
+            background: white;
+            color: #dc2626;
+            border: 2px solid #dc2626;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s;
+            margin-bottom: 20px;
+        }
+        .btn-back:hover {
+            background: #dc2626;
+            color: white;
+        }
+        .card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .card h2 {
+            font-size: 20px;
+            color: #1e293b;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #dc2626;
+        }
+        .search-box {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 14px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+        .search-box input:focus {
+            outline: none;
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
+        }
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(220,38,38,0.3);
+        }
+        .damage-report {
+            display: none;
+        }
+        .damage-report.show {
+            display: block;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .info-item {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .info-item label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .info-item .value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .damage-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 8px;
+        }
+        .damage-minor { background: #fef3c7; color: #92400e; }
+        .damage-moderate { background: #fed7aa; color: #9a3412; }
+        .damage-severe { background: #fecaca; color: #991b1b; }
+        .damage-none { background: #dcfce7; color: #166534; }
+        .photo-section {
+            margin-top: 24px;
+        }
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .photo-item {
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }
+        .photo-item img {
+            width: 100%;
+            display: block;
+        }
+        .photo-label {
+            padding: 8px;
+            background: #f8fafc;
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            text-align: center;
+        }
+        .detection-details {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-top: 16px;
+        }
+        .detection-item {
+            padding: 12px;
+            background: #f8fafc;
+            border-left: 4px solid #dc2626;
+            margin-bottom: 12px;
+            border-radius: 4px;
+        }
+        .detection-item h4 {
+            font-size: 14px;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+        .detection-item p {
+            font-size: 13px;
+            color: #64748b;
+            margin: 4px 0;
+        }
+        .alert {
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #dc2626;
+        }
+        .report-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-top: 20px;
+        }
+        .report-section h3 {
+            font-size: 18px;
+            color: #1e293b;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #dc2626;
+        }
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        .report-table th,
+        .report-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .report-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #475569;
+            font-size: 13px;
+        }
+        .report-table td {
+            color: #334155;
+            font-size: 14px;
+        }
+        .print-btn {
+            margin-top: 20px;
+            background: #475569;
+            color: white;
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .print-btn:hover {
+            background: #334155;
+        }
+        @media print {
+            .btn-back, .search-box, .print-btn, .nav-bar { display: none !important; }
+            body { background: white; }
+            .container { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Damage Check & Report</h1>
+            <p>Comprehensive Vehicle Damage Assessment</p>
+        </div>
+        <div class="content">
+            <a href="/" class="btn-back">← Back to Dashboard</a>
+            
+            <div class="card">
+                <h2>Search Ticket</h2>
+                <div class="search-box">
+                    <input type="text" id="ticketSearch" placeholder="Enter Ticket Number (e.g., 0001)" autofocus>
+                    <button class="btn btn-primary" onclick="searchTicket()">Search</button>
+                </div>
+                <div id="errorMessage"></div>
+            </div>
+
+            <div id="damageReport" class="damage-report">
+                <div class="card">
+                    <h2>Vehicle Information</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Ticket Number</label>
+                            <div class="value" id="reportTicketID">—</div>
+                        </div>
+                        <div class="info-item">
+                            <label>License Plate</label>
+                            <div class="value" id="reportLicense">—</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Customer Name</label>
+                            <div class="value" id="reportCustomer">—</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Phone Number</label>
+                            <div class="value" id="reportPhone">—</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Vehicle Make</label>
+                            <div class="value" id="reportMake">—</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Vehicle Color</label>
+                            <div class="value" id="reportColor">—</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Check-In Time</label>
+                            <div class="value" id="reportCheckIn">—</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Status</label>
+                            <div class="value" id="reportStatus">—</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Damage Assessment Summary</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Damage Status</label>
+                            <div class="value" id="damageStatus">—</div>
+                            <div id="damageBadge"></div>
+                        </div>
+                        <div class="info-item">
+                            <label>Severity Level</label>
+                            <div class="value" id="damageSeverity">—</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Damage Locations</label>
+                            <div class="value" id="damageLocations">—</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Total Detections</label>
+                            <div class="value" id="damageCount">—</div>
+                        </div>
+                    </div>
+
+                    <div class="detection-details" id="detectionDetails" style="display: none;">
+                        <h3 style="font-size: 16px; margin-bottom: 12px; color: #1e293b;">Detailed Detections</h3>
+                        <div id="detectionList"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Damage Assessment Photos</h2>
+                    <div class="photo-section">
+                        <h3 style="font-size: 16px; margin-bottom: 12px; color: #475569;">Original Photos</h3>
+                        <div class="photo-grid" id="originalPhotos"></div>
+                    </div>
+                    <div class="photo-section">
+                        <h3 style="font-size: 16px; margin-bottom: 12px; margin-top: 24px; color: #475569;">AI-Annotated Photos (Damage Highlighted)</h3>
+                        <div class="photo-grid" id="annotatedPhotos"></div>
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <h3>Damage Report Summary</h3>
+                    <table class="report-table">
+                        <tr>
+                            <th>Report Generated</th>
+                            <td id="reportDate">—</td>
+                        </tr>
+                        <tr>
+                            <th>AI Model Used</th>
+                            <td id="modelVersion">—</td>
+                        </tr>
+                        <tr>
+                            <th>Inspector Notes</th>
+                            <td id="inspectorNotes">—</td>
+                        </tr>
+                        <tr>
+                            <th>Assigned Runner</th>
+                            <td id="assignedRunner">—</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="text-align: center;">
+                    <button class="print-btn" onclick="window.print()">🖨️ Print Report</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function searchTicket() {
+            const ticketId = document.getElementById('ticketSearch').value.trim();
+            const errorDiv = document.getElementById('errorMessage');
+            const reportDiv = document.getElementById('damageReport');
+            
+            if (!ticketId) {
+                errorDiv.innerHTML = '<div class="alert alert-error">Please enter a ticket number</div>';
+                reportDiv.classList.remove('show');
+                return;
+            }
+
+            errorDiv.innerHTML = '';
+            
+            fetch(`/get_damage_report/${ticketId}`)
+                .then(r => {
+                    if (!r.ok) throw new Error('Ticket not found');
+                    return r.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        displayReport(data.ticket);
+                        reportDiv.classList.add('show');
+                    } else {
+                        throw new Error(data.error);
+                    }
+                })
+                .catch(err => {
+                    errorDiv.innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
+                    reportDiv.classList.remove('show');
+                });
+        }
+
+        function displayReport(ticket) {
+            // Basic info
+            document.getElementById('reportTicketID').textContent = ticket.ticketID;
+            document.getElementById('reportLicense').textContent = ticket.licensePlate;
+            document.getElementById('reportCustomer').textContent = ticket.customerName;
+            document.getElementById('reportPhone').textContent = ticket.customerPhone;
+            document.getElementById('reportMake').textContent = ticket.carMake;
+            document.getElementById('reportColor').textContent = ticket.carColor;
+            document.getElementById('reportCheckIn').textContent = ticket.checkInTime;
+            document.getElementById('reportStatus').textContent = ticket.status;
+
+            // Damage summary
+            const summary = ticket.damageSummary || {};
+            document.getElementById('damageStatus').textContent = summary.damage ? 'Damage Detected' : 'No Damage';
+            document.getElementById('damageSeverity').textContent = (summary.severity || 'none').toUpperCase();
+            document.getElementById('damageLocations').textContent = 
+                summary.location && summary.location.length > 0 
+                    ? summary.location.join(', ').toUpperCase() 
+                    : 'N/A';
+            document.getElementById('damageCount').textContent = summary.totalDetections || 0;
+
+            // Damage badge
+            const badgeDiv = document.getElementById('damageBadge');
+            if (summary.damage) {
+                badgeDiv.innerHTML = `<span class="damage-badge damage-${summary.severity}">${summary.severity.toUpperCase()}</span>`;
+            } else {
+                badgeDiv.innerHTML = '<span class="damage-badge damage-none">NO DAMAGE</span>';
+            }
+
+            // Detection details
+            const detections = ticket.damageDetections || [];
+            const detailsDiv = document.getElementById('detectionDetails');
+            const listDiv = document.getElementById('detectionList');
+            
+            if (detections.length > 0 && detections.some(d => d.boxes && d.boxes.length > 0)) {
+                detailsDiv.style.display = 'block';
+                listDiv.innerHTML = detections.map((det, idx) => {
+                    if (!det.boxes || det.boxes.length === 0) return '';
+                    return `
+                        <div class="detection-item">
+                            <h4>Photo ${idx + 1} - ${det.boxes.length} detection(s)</h4>
+                            ${det.boxes.map(box => `
+                                <p>• ${box.label} (Confidence: ${(box.score * 100).toFixed(1)}%)</p>
+                            `).join('')}
+                            ${det.location && det.location.length > 0 
+                                ? `<p><strong>Location:</strong> ${det.location.join(', ')}</p>` 
+                                : ''}
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                detailsDiv.style.display = 'none';
+            }
+
+            // Photos
+            const originalDiv = document.getElementById('originalPhotos');
+            const annotatedDiv = document.getElementById('annotatedPhotos');
+            
+            originalDiv.innerHTML = (ticket.damageImages || []).map((img, idx) => `
+                <div class="photo-item">
+                    <img src="${img}" alt="Original Photo ${idx + 1}">
+                    <div class="photo-label">Photo ${idx + 1}</div>
+                </div>
+            `).join('');
+
+            annotatedDiv.innerHTML = (ticket.damageAnnotated || []).map((img, idx) => `
+                <div class="photo-item">
+                    <img src="${img}" alt="Annotated Photo ${idx + 1}">
+                    <div class="photo-label">Photo ${idx + 1} - Annotated</div>
+                </div>
+            `).join('');
+
+            // Report details
+            document.getElementById('reportDate').textContent = new Date().toLocaleString();
+            document.getElementById('modelVersion').textContent = summary.modelVersion || 'N/A';
+            document.getElementById('inspectorNotes').textContent = ticket.notes || 'No notes provided';
+            document.getElementById('assignedRunner').textContent = ticket.assignedRunner || 'Not assigned';
+        }
+
+        // Allow Enter key to search
+        document.getElementById('ticketSearch').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchTicket();
+            }
+        });
     </script>
 </body>
 </html>
@@ -2213,6 +2737,7 @@ MAIN_PAGE_HTML = '''
             <a href="/runner_clockin" class="nav-btn">Runner Management</a>
             <a href="/shift_portal" class="nav-btn">Shift Management</a>
             <a href="/calendar" class="nav-btn">Shift Calendar</a>
+            <a href="/damage_check" class="nav-btn">Damage Check</a>
             <a href="/announcement_page" class="nav-btn">Announcements</a>
             <a href="/logout" class="nav-btn logout-btn">Logout</a>
         </div>

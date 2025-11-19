@@ -620,6 +620,15 @@ def get_damage_report(ticket_id):
             return jsonify({"success": True, "ticket": t})
     return jsonify({"success": False, "error": "Ticket not found"}), 404
 
+@app.route("/incident_report/<ticket_id>")
+@user_login_required
+def incident_report(ticket_id):
+    data = load_json(DATA_FILE)
+    for t in data:
+        if t.get("ticketID") == ticket_id:
+            return render_template_string(INCIDENT_REPORT_HTML, ticket=t)
+    return "Ticket not found", 404
+
 @app.route("/calendar")
 @user_login_required
 def calendar_view():
@@ -1220,6 +1229,435 @@ SHIFT_PORTAL_HTML = '''
 </html>
 '''
 
+# ===================== INCIDENT REPORT HTML =====================
+INCIDENT_REPORT_HTML = '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Incident Report - Ticket #{{ ticket.ticketID }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: white;
+            padding: 20px;
+            color: #000;
+        }
+        .report-container {
+            max-width: 850px;
+            margin: 0 auto;
+            border: 3px solid #000;
+            padding: 30px;
+            background: white;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        .form-field {
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+        .form-field label {
+            font-weight: bold;
+            margin-right: 8px;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+        .form-field .underline {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            min-height: 20px;
+            padding: 0 5px;
+            font-size: 12px;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .repair-description {
+            border: 1px solid #000;
+            min-height: 150px;
+            padding: 10px;
+            margin-bottom: 20px;
+            line-height: 1.8;
+        }
+        .damage-section {
+            border: 2px solid #000;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .damage-key {
+            margin-bottom: 15px;
+        }
+        .damage-key p {
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        .checkbox-group {
+            display: flex;
+            gap: 30px;
+            margin: 10px 0;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .checkbox-item input {
+            width: 18px;
+            height: 18px;
+        }
+        .car-diagram {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .car-diagram-container {
+            display: inline-block;
+            border: 2px solid #000;
+            padding: 20px;
+            background: white;
+        }
+        .car-view {
+            margin: 15px 0;
+            position: relative;
+        }
+        .car-outline {
+            width: 100%;
+            max-width: 400px;
+            height: 80px;
+            border: 2px solid #000;
+            margin: 10px auto;
+            position: relative;
+            background: white;
+        }
+        .car-outline.top {
+            border-radius: 60px 60px 20px 20px;
+        }
+        .car-outline.side {
+            border-radius: 40px 10px 10px 40px;
+        }
+        .car-outline.bottom {
+            border-radius: 20px 20px 60px 60px;
+        }
+        .car-label {
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .wheels {
+            position: absolute;
+            width: 15px;
+            height: 30px;
+            background: #000;
+            border-radius: 4px;
+        }
+        .wheel-fl { top: 15px; left: -8px; }
+        .wheel-fr { top: 15px; right: -8px; }
+        .wheel-bl { bottom: 15px; left: -8px; }
+        .wheel-br { bottom: 15px; right: -8px; }
+        .terms {
+            font-size: 10px;
+            line-height: 1.4;
+            margin: 20px 0;
+            padding: 10px;
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
+        }
+        .terms-title {
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .signature-section {
+            margin-top: 20px;
+        }
+        .signature-line {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+        }
+        .signature-line label {
+            font-weight: bold;
+            margin-right: 10px;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+        .signature-line .line {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            min-height: 25px;
+        }
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            font-size: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #000;
+        }
+        .print-btn {
+            background: #dc2626;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 20px auto;
+            display: block;
+        }
+        .print-btn:hover {
+            background: #b91c1c;
+        }
+        @media print {
+            .print-btn { display: none; }
+            body { padding: 0; }
+            .report-container { border: none; }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn" onclick="window.print()">🖨️ Print Incident Report</button>
+    
+    <div class="report-container">
+        <div class="header">
+            <h1>Vehicle Inspection / Incident Report</h1>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label>Date:</label>
+                <div class="underline">{{ ticket.checkInTime }}</div>
+            </div>
+            <div class="form-field">
+                <label>Tag Nr.:</label>
+                <div class="underline"></div>
+            </div>
+            <div class="form-field">
+                <label>Vin Nr.:</label>
+                <div class="underline"></div>
+            </div>
+            <div class="form-field">
+                <label>Mileage:</label>
+                <div class="underline"></div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label>Year:</label>
+                <div class="underline"></div>
+            </div>
+            <div class="form-field" style="flex: 2;">
+                <label>Make/Model:</label>
+                <div class="underline">{{ ticket.carMake }} - {{ ticket.carColor }}</div>
+            </div>
+            <div class="form-field">
+                <label>Time Promised:</label>
+                <div class="underline"></div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field" style="flex: 2;">
+                <label>Name:</label>
+                <div class="underline">{{ ticket.customerName }}</div>
+            </div>
+            <div class="form-field" style="flex: 2;">
+                <label>Address:</label>
+                <div class="underline"></div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label>City:</label>
+                <div class="underline"></div>
+            </div>
+            <div class="form-field">
+                <label>State:</label>
+                <div class="underline"></div>
+            </div>
+            <div class="form-field">
+                <label>Zip:</label>
+                <div class="underline"></div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label>Home Phone:</label>
+                <div class="underline">{{ ticket.customerPhone }}</div>
+            </div>
+            <div class="form-field">
+                <label>Business Phone:</label>
+                <div class="underline"></div>
+            </div>
+            <div class="form-field">
+                <label>Ext.:</label>
+                <div class="underline"></div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label>Email Address:</label>
+                <div class="underline"></div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-field">
+                <label>License Plate:</label>
+                <div class="underline">{{ ticket.licensePlate }}</div>
+            </div>
+            <div class="form-field">
+                <label>Ticket Number:</label>
+                <div class="underline">{{ ticket.ticketID }}</div>
+            </div>
+        </div>
+
+        <div class="section-title">Incident / Repair Description:</div>
+        <div class="repair-description">
+            {{ ticket.notes or '' }}
+            <br><br>
+            {% if ticket.damageSummary.damage %}
+            AI DAMAGE DETECTION RESULTS:<br>
+            - Severity: {{ ticket.damageSummary.severity|upper }}<br>
+            - Locations: {{ ', '.join(ticket.damageSummary.location)|upper if ticket.damageSummary.location else 'N/A' }}<br>
+            - Total Detections: {{ ticket.damageSummary.totalDetections }}<br>
+            {% endif %}
+            <br>
+            _________________________________________________________________________<br>
+            _________________________________________________________________________<br>
+            _________________________________________________________________________<br>
+            _________________________________________________________________________<br>
+        </div>
+
+        <p style="font-size: 11px; text-align: center; margin-bottom: 15px;">
+            <strong>(SEE REVERSE SIDE FOR ADDITIONAL INFORMATION)</strong>
+        </p>
+
+        <div class="damage-section">
+            <div class="damage-key">
+                <p><strong>X = Stone damage, scratch, dent or glass damage.</strong></p>
+            </div>
+            
+            <div class="checkbox-group">
+                <div class="checkbox-item">
+                    <input type="checkbox" id="carDirty">
+                    <label for="carDirty">Car Dirty</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="carClean">
+                    <label for="carClean">Car Clean</label>
+                </div>
+            </div>
+
+            <p style="font-size: 10px; margin: 10px 0;">
+                If your car is dirty when it is dropped off, it's possible we won't see some damage.
+            </p>
+
+            <div class="car-diagram-container">
+                <div class="car-view">
+                    <div class="car-label">TOP VIEW</div>
+                    <div class="car-outline top">
+                        <div class="wheels wheel-fl"></div>
+                        <div class="wheels wheel-fr"></div>
+                    </div>
+                </div>
+
+                <div class="car-view">
+                    <div class="car-label">SIDE VIEW</div>
+                    <div class="car-outline side">
+                        <div class="wheels wheel-fl"></div>
+                        <div class="wheels wheel-bl"></div>
+                    </div>
+                </div>
+
+                <div class="car-view">
+                    <div class="car-label">BOTTOM VIEW</div>
+                    <div class="car-outline bottom">
+                        <div class="wheels wheel-bl"></div>
+                        <div class="wheels wheel-br"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="terms">
+            <div class="terms-title">TERMS: STRICTLY CASH Unless Arrangements Made</div>
+            <p>
+                I hereby authorize the repair work specified on this form to be done along with the necessary material and/or parts, and hereby grant permission for anyone employed by this establishment to operate the vehicle herein described on streets, highways, or elsewhere for the purpose of testing and/or inspection. An express mechanic's lien is hereby acknowledged on above vehicle to secure the amount of repairs thereto. In case of fire, theft, or any other cause beyond your control for any delays caused by unavailability of parts or delays in parts shipments by the supplier or transporter, I hereby grant you and/or your insurance carrier subrogation rights against any carrier or others to seek damages for delays in shipment of parts. All disputes shall be governed by the laws of the jurisdiction in which the repair was performed. Disputes arising out of the interpretation or application of this agreement shall be subject to mediation and/or binding arbitration as provided by the rules and procedures of the American Arbitration Association. Customer acknowledges receipt of itemized invoice before authorizing repairs. Any legal action concerning any controversy, claim or dispute arising out of or relating to this contract shall be filed in the jurisdiction where the repairs were performed. Customer waives trial by jury. Vehicle owner shall be responsible for payment unless other written arrangements have been confirmed by management in advance. Declined services or repairs remain the customer's responsibility. All work performed carries a limited warranty as required by law. Storage fees may apply after 30 days. Management reserves the right to refuse service.
+            </p>
+        </div>
+
+        <div class="signature-section">
+            <div class="form-row">
+                <div class="form-field">
+                    <label>Minimum Diagnostic Charge $</label>
+                    <div class="underline"></div>
+                </div>
+                <div class="form-field">
+                    <label>Preliminary Estimate Total $</label>
+                    <div class="underline"></div>
+                </div>
+            </div>
+
+            <div class="signature-line">
+                <label>Disclaimer and Damage noted:</label>
+                <div class="line"></div>
+            </div>
+
+            <div class="signature-line">
+                <label>Customer Signature:</label>
+                <div class="line"></div>
+            </div>
+
+            <div class="signature-line">
+                <label>Inspector/Valet Signature:</label>
+                <div class="line"></div>
+            </div>
+
+            <div class="signature-line">
+                <label>Date:</label>
+                <div class="line"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div>VALET AUTO PRODUCTS</div>
+            <div>Item #: 171</div>
+            <div>MADE IN USA</div>
+        </div>
+    </div>
+
+    <button class="print-btn" onclick="window.print()">🖨️ Print Incident Report</button>
+</body>
+</html>
+'''
+
 # ===================== DAMAGE CHECK HTML =====================
 DAMAGE_CHECK_HTML = '''
 <!DOCTYPE html>
@@ -1602,12 +2040,15 @@ DAMAGE_CHECK_HTML = '''
 
                 <div style="text-align: center;">
                     <button class="print-btn" onclick="window.print()">🖨️ Print Report</button>
+                    <button class="print-btn" onclick="openIncidentReport()" style="background: #dc2626; margin-left: 12px;">📋 Generate Incident Report</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        let currentTicketId = null;
+
         function searchTicket() {
             const ticketId = document.getElementById('ticketSearch').value.trim();
             const errorDiv = document.getElementById('errorMessage');
@@ -1641,6 +2082,8 @@ DAMAGE_CHECK_HTML = '''
         }
 
         function displayReport(ticket) {
+            currentTicketId = ticket.ticketID; // Store for incident report
+            
             // Basic info
             document.getElementById('reportTicketID').textContent = ticket.ticketID;
             document.getElementById('reportLicense').textContent = ticket.licensePlate;
@@ -1725,6 +2168,14 @@ DAMAGE_CHECK_HTML = '''
                 searchTicket();
             }
         });
+
+        function openIncidentReport() {
+            if (currentTicketId) {
+                window.open(`/incident_report/${currentTicketId}`, '_blank');
+            } else {
+                alert('Please search for a ticket first');
+            }
+        }
     </script>
 </body>
 </html>

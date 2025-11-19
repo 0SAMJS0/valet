@@ -1667,106 +1667,109 @@ DAMAGE_CHECK_HTML = '''
                         Vehicle Inspection / Incident Report
                     </h2>
 
-                    <!-- Form Row 1 -->
-                    <div class="form-row-incident">
-                        <div class="form-field-incident">
-                            <label>Date:</label>
-                            <input type="text" id="inc_date" class="incident-input">
-                        </div>
-                        <div class="form-field-incident">
-                            <label>Tag Nr.:</label>
-                            <input type="text" id="inc_tag" class="incident-input">
-                        </div>
-                        <div class="form-field-incident">
-                            <label>VIN Nr.:</label>
-                            <input type="text" id="inc_vin" class="incident-input">
-                        </div>
-                        <div class="form-field-incident">
-                            <label>Mileage:</label>
-                            <input type="text" id="inc_mileage" class="incident-input">
-                        </div>
-                    </div>
+                   <!-- Form Row 1 -->
+<div class="form-row-incident">
+    <div class="form-field-incident">
+        <label>Date:</label>
+        <input type="text" id="inc_date" class="incident-input">
+    </div>
+    <div class="form-field-incident">
+        <label>Tag Nr.:</label>
+        <input type="text" id="inc_tag" class="incident-input">
+    </div>
+    <div class="form-field-incident">
+        <label>VIN Nr.:</label>
+        <input type="text" id="inc_vin" class="incident-input">
+    </div>
+    <div class="form-field-incident">
+        <label>Mileage:</label>
+        <input type="text" id="inc_mileage" class="incident-input">
+    </div>
+</div>
 
-                    <!-- Form Row 2 -->
-                    <div class="form-row-incident">
-                        <div class="form-field-incident">
-                            <label>Year:</label>
-                            <input type="text" id="inc_year" class="incident-input">
-                        </div>
-                        <div class="form-field-incident" style="flex: 2;">
-                            <label>Make/Model:</label>
-                            <input type="text" id="inc_make" class="incident-input">
-                        </div>
-                        <div class="form-field-incident">
-                            <label>Time Promised:</label>
-                            <input type="text" id="inc_time" class="incident-input">
-                        </div>
-                    </div>
+<!-- Form Row 2 -->
+<div class="form-row-incident">
+    <div class="form-field-incident">
+        <label>Year:</label>
+        <input type="text" id="inc_year" class="incident-input">
+    </div>
+    <div class="form-field-incident" style="flex: 2;">
+        <label>Make/Model:</label>
+        <input type="text" id="inc_make" class="incident-input">
+    </div>
+    <div class="form-field-incident">
+        <label>Time Promised:</label>
+        <input type="text" id="inc_time" class="incident-input">
+    </div>
+</div>
 
-                    <!-- Form Row 3 -->
-                    <div class="form-row-incident">
-                        <div class="form-field-incident" style="flex: 2;">
-                            <label>Name:</label>
-                            <input type="text" id="inc_name" class="incident-input">
-                        </div>
-                        <div class="form-field-incident" style="flex: 2;">
-                            <label>Address:</label>
-                            <input type="text" id="inc_address" class="incident-input">
-                        </div>
-                    </div>
+<!-- Form Row 3 - Name field gets its own row for maximum space -->
+<div class="form-row-incident">
+    <div class="form-field-incident" style="flex: 1;">
+        <label>Name:</label>
+        <input type="text" id="inc_name" class="incident-input">
+    </div>
+</div>
 
-                    <!-- Form Row 4 -->
-                    <div class="form-row-incident">
-                        <div class="form-field-incident">
-                            <label>City:</label>
-                            <input type="text" id="inc_city" class="incident-input">
-                        </div>
-                        <div class="form-field-incident">
-                            <label>State:</label>
-                            <input type="text" id="inc_state" class="incident-input">
-                        </div>
-                        <div class="form-field-incident">
-                            <label>Zip:</label>
-                            <input type="text" id="inc_zip" class="incident-input">
-                        </div>
-                    </div>
+<!-- Form Row 4 - Address field gets its own row for maximum space -->
+<div class="form-row-incident">
+    <div class="form-field-incident" style="flex: 1;">
+        <label>Address:</label>
+        <input type="text" id="inc_address" class="incident-input">
+    </div>
+</div>
 
-                    <!-- Form Row 5 -->
-                    <div class="form-row-incident">
-                        <div class="form-field-incident">
-                            <label>Home Phone:</label>
-                            <input type="text" id="inc_home_phone" class="incident-input">
-                        </div>
-                        <div class="form-field-incident">
-                            <label>Business Phone:</label>
-                            <input type="text" id="inc_business_phone" class="incident-input">
-                        </div>
-                        <div class="form-field-incident">
-                            <label>Ext.:</label>
-                            <input type="text" id="inc_ext" class="incident-input">
-                        </div>
-                    </div>
+<!-- Form Row 5 -->
+<div class="form-row-incident">
+    <div class="form-field-incident">
+        <label>City:</label>
+        <input type="text" id="inc_city" class="incident-input">
+    </div>
+    <div class="form-field-incident">
+        <label>State:</label>
+        <input type="text" id="inc_state" class="incident-input">
+    </div>
+    <div class="form-field-incident">
+        <label>Zip:</label>
+        <input type="text" id="inc_zip" class="incident-input">
+    </div>
+</div>
 
-                    <!-- Form Row 6 -->
-                    <div class="form-row-incident">
-                        <div class="form-field-incident" style="flex: 1;">
-                            <label>Email Address:</label>
-                            <input type="email" id="inc_email" class="incident-input">
-                        </div>
-                    </div>
+<!-- Form Row 6 -->
+<div class="form-row-incident">
+    <div class="form-field-incident">
+        <label>Home Phone:</label>
+        <input type="text" id="inc_home_phone" class="incident-input">
+    </div>
+    <div class="form-field-incident">
+        <label>Business Phone:</label>
+        <input type="text" id="inc_business_phone" class="incident-input">
+    </div>
+    <div class="form-field-incident">
+        <label>Ext.:</label>
+        <input type="text" id="inc_ext" class="incident-input">
+    </div>
+</div>
 
-                    <!-- Form Row 7 -->
-                    <div class="form-row-incident">
-                        <div class="form-field-incident">
-                            <label>License Plate:</label>
-                            <input type="text" id="inc_license" class="incident-input">
-                        </div>
-                        <div class="form-field-incident">
-                            <label>Ticket Number:</label>
-                            <input type="text" id="inc_ticket" class="incident-input">
-                        </div>
-                    </div>
+<!-- Form Row 7 - Email gets its own row for maximum space -->
+<div class="form-row-incident">
+    <div class="form-field-incident" style="flex: 1;">
+        <label>Email Address:</label>
+        <input type="email" id="inc_email" class="incident-input">
+    </div>
+</div>
 
+<!-- Form Row 8 -->
+<div class="form-row-incident">
+    <div class="form-field-incident">
+        <label>License Plate:</label>
+        <input type="text" id="inc_license" class="incident-input">
+    </div>
+    <div class="form-field-incident">
+        <label>Ticket Number:</label>
+        <input type="text" id="inc_ticket" class="incident-input">
+    </div>
+</div>
                     <!-- Incident Description -->
                     <div style="margin: 20px 0;">
                         <label style="font-weight: bold; display: block; margin-bottom: 8px;">Incident / Repair Description:</label>

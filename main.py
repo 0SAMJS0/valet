@@ -1455,7 +1455,7 @@ INCIDENT_REPORT_HTML = '''
         <div class="form-row">
             <div class="form-field">
                 <label>Date:</label>
-                <div class="underline">{{ ticket.checkInTime }}</div>
+                <div class="underline">{{ ticket.get('checkInTime', '') }}</div>
             </div>
             <div class="form-field">
                 <label>Tag Nr.:</label>
@@ -1478,7 +1478,7 @@ INCIDENT_REPORT_HTML = '''
             </div>
             <div class="form-field" style="flex: 2;">
                 <label>Make/Model:</label>
-                <div class="underline">{{ ticket.carMake }} - {{ ticket.carColor }}</div>
+                <div class="underline">{{ ticket.get('carMake', '') }} - {{ ticket.get('carColor', '') }}</div>
             </div>
             <div class="form-field">
                 <label>Time Promised:</label>
@@ -1489,7 +1489,7 @@ INCIDENT_REPORT_HTML = '''
         <div class="form-row">
             <div class="form-field" style="flex: 2;">
                 <label>Name:</label>
-                <div class="underline">{{ ticket.customerName }}</div>
+                <div class="underline">{{ ticket.get('customerName', '') }}</div>
             </div>
             <div class="form-field" style="flex: 2;">
                 <label>Address:</label>
@@ -1515,7 +1515,7 @@ INCIDENT_REPORT_HTML = '''
         <div class="form-row">
             <div class="form-field">
                 <label>Home Phone:</label>
-                <div class="underline">{{ ticket.customerPhone }}</div>
+                <div class="underline">{{ ticket.get('customerPhone', '') }}</div>
             </div>
             <div class="form-field">
                 <label>Business Phone:</label>
@@ -1537,23 +1537,24 @@ INCIDENT_REPORT_HTML = '''
         <div class="form-row">
             <div class="form-field">
                 <label>License Plate:</label>
-                <div class="underline">{{ ticket.licensePlate }}</div>
+                <div class="underline">{{ ticket.get('licensePlate', '') }}</div>
             </div>
             <div class="form-field">
                 <label>Ticket Number:</label>
-                <div class="underline">{{ ticket.ticketID }}</div>
+                <div class="underline">{{ ticket.get('ticketID', '') }}</div>
             </div>
         </div>
 
         <div class="section-title">Incident / Repair Description:</div>
         <div class="repair-description">
-            {{ ticket.notes or '' }}
+            {{ ticket.get('notes', '') }}
             <br><br>
-            {% if ticket.damageSummary.damage %}
+            {% set summary = ticket.get('damageSummary', {}) %}
+            {% if summary.get('damage') %}
             AI DAMAGE DETECTION RESULTS:<br>
-            - Severity: {{ ticket.damageSummary.severity|upper }}<br>
-            - Locations: {{ ', '.join(ticket.damageSummary.location)|upper if ticket.damageSummary.location else 'N/A' }}<br>
-            - Total Detections: {{ ticket.damageSummary.totalDetections }}<br>
+            - Severity: {{ summary.get('severity', 'N/A')|upper }}<br>
+            - Locations: {{ ', '.join(summary.get('location', []))|upper if summary.get('location') else 'N/A' }}<br>
+            - Total Detections: {{ summary.get('totalDetections', 0) }}<br>
             {% endif %}
             <br>
             _________________________________________________________________________<br>
@@ -1621,9 +1622,9 @@ INCIDENT_REPORT_HTML = '''
             <div style="margin-bottom: 30px;">
                 <p style="font-weight: bold; margin-bottom: 15px; font-size: 13px;">Original Photos (Captured at Check-In):</p>
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
-                    {% for img in ticket.damageImages %}
+                    {% for img in ticket.get('damageImages', []) %}
                     <div style="border: 2px solid #000; padding: 10px; text-align: center;">
-                        <img src="{{ img }}" style="width: 100%; max-width: 100%; height: auto; display: block; margin-bottom: 8px;" alt="Damage Photo {{ loop.index }}">
+                        <img src="{{ img }}" style="width: 100%; max-width: 100%; height: auto; display: block; margin-bottom: 8px;" alt="Damage Photo">
                         <p style="font-size: 11px; font-weight: bold;">Photo {{ loop.index }} - Original</p>
                     </div>
                     {% endfor %}
@@ -1633,24 +1634,27 @@ INCIDENT_REPORT_HTML = '''
             <div>
                 <p style="font-weight: bold; margin-bottom: 15px; font-size: 13px;">AI-Annotated Photos (Damage Highlighted in Red):</p>
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-                    {% for img in ticket.damageAnnotated %}
+                    {% for img in ticket.get('damageAnnotated', []) %}
                     <div style="border: 2px solid #000; padding: 10px; text-align: center;">
-                        <img src="{{ img }}" style="width: 100%; max-width: 100%; height: auto; display: block; margin-bottom: 8px;" alt="Annotated Photo {{ loop.index }}">
+                        <img src="{{ img }}" style="width: 100%; max-width: 100%; height: auto; display: block; margin-bottom: 8px;" alt="Annotated Photo">
                         <p style="font-size: 11px; font-weight: bold;">Photo {{ loop.index }} - AI Analysis</p>
                     </div>
                     {% endfor %}
                 </div>
             </div>
 
-            {% if ticket.damageDetections %}
+            {% set detections = ticket.get('damageDetections', []) %}
+            {% if detections %}
             <div style="margin-top: 20px; border: 1px solid #000; padding: 15px;">
                 <p style="font-weight: bold; margin-bottom: 10px; font-size: 13px;">AI Detection Summary:</p>
-                {% for det in ticket.damageDetections %}
-                    {% if det.boxes and det.boxes|length > 0 %}
+                {% for det in detections %}
+                    {% set boxes = det.get('boxes', []) %}
+                    {% if boxes %}
                     <div style="margin-bottom: 10px; padding: 10px; background: #f5f5f5; border-left: 3px solid #dc2626;">
-                        <p style="font-size: 11px; margin: 3px 0;"><strong>Photo {{ loop.index }}:</strong> {{ det.boxes|length }} detection(s)</p>
-                        {% for box in det.boxes %}
-                        <p style="font-size: 10px; margin: 2px 0 2px 15px;">• {{ box.label|capitalize }} ({{ (box.score * 100)|round(1) }}% confidence)</p>
+                        <p style="font-size: 11px; margin: 3px 0;"><strong>Photo {{ loop.index }}:</strong> {{ boxes|length }} detection(s)</p>
+                        {% for box in boxes %}
+                        {% set score_pct = (box.get('score', 0) * 100)|round(1) %}
+                        <p style="font-size: 10px; margin: 2px 0 2px 15px;">• {{ box.get('label', 'damage') }} ({{ score_pct }}% confidence)</p>
                         {% endfor %}
                     </div>
                     {% endif %}

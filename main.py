@@ -20,7 +20,7 @@ UPLOAD_FOLDER = os.path.join(STATIC_DIR, "uploads")
 QRCODE_FOLDER = os.path.join(STATIC_DIR, "qrcodes")
 
 # Roboflow Hosted API
- RF_API_KEY = "v7rqUvArsg97ISvd3PEj"
+RF_API_KEY = "v7rqUvArsg97ISvd3PEj"
 RF_MODEL_ID = "car-damage-assessment-8mb45-aigqn/1"
 RF_ENABLED = True
 

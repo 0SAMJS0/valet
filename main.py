@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
 """
 Valet Operations Management System with Damage Detection
-- Uses Roboflow Hosted API via requests (hardcoded key/model here)
-- Falls back to local YOLOv8 (if installed)
-- Enforces exactly 4 photos per check-in
-- Shows Minor/Moderate/Severe based on TOTAL detections across all 4 photos:
-  <3 = minor, 3–6 = moderate, >6 = severe
-- Clicking the severity badge opens a modal gallery with the 4 annotated images
-- Allows up to 64 MB uploads and downscales images before sending to Roboflow
+- Blue gradient background with Moffitt green branding
+- Admin login system for posting announcements
+- Staff login for main dashboard access
+- AI-powered vehicle damage detection
 """
 
 import os, io, json, datetime, qrcode, cv2
 from functools import wraps
 from flask import Flask, render_template_string, request, redirect, jsonify, session, send_from_directory, url_for
-from apscheduler.schedulers.background import BackgroundScheduler
 from PIL import Image, ImageDraw, ImageFont
 import requests
 
@@ -22,9 +18,9 @@ STATIC_DIR = "static"
 UPLOAD_FOLDER = os.path.join(STATIC_DIR, "uploads")
 QRCODE_FOLDER = os.path.join(STATIC_DIR, "qrcodes")
 
-# Roboflow Hosted API (hardcoded per your request)
-RF_API_KEY = "v7rqUvArsg97ISvd3PEj"  # <-- your Private API Key
-RF_MODEL_ID = "car-damage-assessment-8mb45-aigqn/1"  # <-- Universe model/version id
+# Roboflow Hosted API
+RF_API_KEY = "v7rqUvArsg97ISvd3PEj"
+RF_MODEL_ID = "car-damage-assessment-8mb45-aigqn/1"
 RF_ENABLED = True
 
 # YOLO local (optional fallback)
@@ -38,7 +34,6 @@ try:
     print(f"✅ YOLOv8 model loaded: {MODEL_PATH}")
 except Exception as e:
     print(f"⚠️ YOLOv8 disabled: {e}")
-    print("   To enable, run: pip3 install ultralytics opencv-python torch")
 
 # Data files
 DATA_FILE = "data.json"
@@ -71,10 +66,7 @@ def annotate_image(src_path: str, boxes: list, dst_path: str):
     im.save(dst_path)
 
 def prepare_image_for_api(path, max_side=1600, quality=85):
-    """
-    Load image, downscale so the longest side <= max_side, and JPEG-encode to bytes.
-    Returns a (filename, fileobj, mimetype) triple suitable for requests 'files'.
-    """
+    """Load image, downscale and JPEG-encode to bytes."""
     im = Image.open(path).convert("RGB")
     w, h = im.size
     scale = min(1.0, float(max_side) / max(w, h))
@@ -108,11 +100,7 @@ def generate_qr_code(ticket_id):
 
 # ===================== DETECTION =====================
 def detect_with_roboflow(img_path):
-    """
-    Hosted API path first; otherwise fallback to YOLO if available.
-    Returns: {is_car, damage, location[], severity, boxes[], version}
-    """
-    # --- helpers for post-processing ---
+    """Hosted API path first; otherwise fallback to YOLO if available."""
     def _area(b):
         return max(0, (b["x2"] - b["x1"])) * max(0, (b["y2"] - b["y1"]))
 
@@ -123,7 +111,6 @@ def detect_with_roboflow(img_path):
         ua = _area(a) + _area(b) - inter + 1e-9
         return inter / ua
 
-    # thresholds (tune if needed)
     HARD_MIN_AREA = 800
     NMS_IOU = 0.45
 
@@ -133,18 +120,10 @@ def detect_with_roboflow(img_path):
                 raise RuntimeError(f"Cannot read image: {img_path}")
 
             url = f"https://detect.roboflow.com/{RF_MODEL_ID}"
-            params = {
-                "api_key": RF_API_KEY,
-                "confidence": 0.4,
-                "overlap": 0.5
-            }
+            params = {"api_key": RF_API_KEY, "confidence": 0.4, "overlap": 0.5}
             filename, fileobj, mimetype = prepare_image_for_api(img_path)
-            r = requests.post(
-                url,
-                params=params,
-                files={"file": (filename, fileobj, mimetype)},
-                timeout=120
-            )
+            r = requests.post(url, params=params, files={"file": (filename, fileobj, mimetype)}, timeout=120)
+            
             if r.status_code != 200:
                 print(f"[RF ERROR] {r.status_code} -> {r.text}")
                 raise RuntimeError(f"Roboflow error {r.status_code}")
@@ -174,10 +153,7 @@ def detect_with_roboflow(img_path):
                     if x < w/3 or x > 2*w/3:
                         locations.add("side")
 
-                boxes.append({
-                    "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-                    "label": label, "score": round(conf, 2)
-                })
+                boxes.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2, "label": label, "score": round(conf, 2)})
 
             boxes = [b for b in boxes if _area(b) >= HARD_MIN_AREA]
             boxes = sorted(boxes, key=lambda b: b["score"], reverse=True)
@@ -208,14 +184,7 @@ def detect_with_roboflow(img_path):
 
     if not YOLO_ENABLED or yolo_model is None:
         print(f"⚠️ Skipping detection for {img_path} - no Roboflow and YOLOv8 not available")
-        return {
-            "is_car": True,
-            "damage": False,
-            "severity": "none",
-            "location": [],
-            "boxes": [],
-            "version": "disabled"
-        }
+        return {"is_car": True, "damage": False, "severity": "none", "location": [], "boxes": [], "version": "disabled"}
 
     try:
         results = yolo_model(img_path, conf=0.25, verbose=False)
@@ -244,10 +213,7 @@ def detect_with_roboflow(img_path):
                     if cx < img_width/3 or cx > 2*img_width/3:
                         locations.add("side")
 
-                    boxes.append({
-                        "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-                        "label": label, "score": round(conf, 2)
-                    })
+                    boxes.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2, "label": label, "score": round(conf, 2)})
 
         boxes = [b for b in boxes if _area(b) >= HARD_MIN_AREA]
         boxes = sorted(boxes, key=lambda b: b["score"], reverse=True)
@@ -277,14 +243,7 @@ def detect_with_roboflow(img_path):
         }
     except Exception as e:
         print(f"❌ YOLOv8 error: {e}")
-        return {
-            "is_car": True,
-            "damage": False,
-            "severity": "none",
-            "location": [],
-            "boxes": [],
-            "version": "error"
-        }
+        return {"is_car": True, "damage": False, "severity": "none", "location": [], "boxes": [], "version": "error"}
 
 # ===================== OPTIONAL: VONAGE SMS =====================
 SMS_ENABLED = False
@@ -315,7 +274,6 @@ def send_sms(to, message):
 # ===================== FLASK APP =====================
 app = Flask(__name__)
 app.secret_key = os.getenv("APP_SECRET_KEY", "valet_secret_2024")
-# 64 MB total per request
 app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024
 
 # Ensure folders exist
@@ -393,19 +351,13 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
-        # Staff login for accessing the main dashboard
         admins = load_json(ADMIN_FILE)
         if any(a.get("username") == username and a.get("password") == password for a in admins):
             session["user_logged_in"] = True
             return redirect(url_for("index"))
         error = "Invalid credentials. Please try again."
 
-    return render_template_string(
-        LOGIN_HTML,
-        error=error,
-        heading="Staff Login",
-        subheading="Sign in to access the valet dashboard."
-    )
+    return render_template_string(LOGIN_HTML, error=error, heading="Staff Login", subheading="Sign in to access the valet dashboard.")
 
 @app.route("/logout")
 def logout():
@@ -672,12 +624,7 @@ def admin_login():
             return redirect(url_for("admin_dashboard"))
         error = "Invalid credentials. Please try again."
 
-    return render_template_string(
-        LOGIN_HTML,
-        error=error,
-        heading="Admin Login",
-        subheading="Sign in to manage valet operations and announcements."
-    )
+    return render_template_string(LOGIN_HTML, error=error, heading="Admin Login", subheading="Sign in to manage valet operations and announcements.")
 
 @app.route("/admin_logout")
 @login_required
@@ -777,6 +724,8 @@ def calendar_view():
 @app.route("/<path:filename>")
 def serve_file(filename):
     return send_from_directory(".", filename)
+
+# ===================== HTML TEMPLATES =====================
 
 # ===================== RUNNER PAGE HTML =====================
 RUNNER_PAGE_HTML = '''
@@ -1509,32 +1458,24 @@ CALENDAR_HTML = '''
 
             const calendar = document.getElementById('calendar');
             
-            // Add empty cells for days before month starts
             for (let i = 0; i < firstDay; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'calendar-day';
                 calendar.appendChild(cell);
             }
 
-            // Add days of month
             for (let day = 1; day <= daysInMonth; day++) {
                 const cell = document.createElement('div');
                 cell.className = 'calendar-day' + (day === today ? ' today' : '');
                 cell.innerHTML = `<div class="calendar-day-num">${day}</div>`;
-                
-                // You can add shift data here by fetching from /shifts
-                // and matching by day/date
-                
                 calendar.appendChild(cell);
             }
         }
 
-        // Load shifts and populate calendar
         fetch('/shifts')
             .then(r => r.json())
             .then(shifts => {
                 generateCalendar();
-                // Map shifts to calendar days based on your data structure
             });
     </script>
 </body>
@@ -1603,13 +1544,6 @@ ADMIN_HTML = '''
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,86,63,0.3);
         }
-        .btn-secondary {
-            background: #64748b;
-            color: white;
-        }
-        .btn-secondary:hover {
-            background: #475569;
-        }
         .btn-logout {
             background: #ef4444;
             color: white;
@@ -1677,8 +1611,6 @@ ADMIN_HTML = '''
             margin-bottom: 8px;
             font-size: 14px;
         }
-        input[type="text"],
-        input[type="password"],
         textarea {
             width: 100%;
             padding: 12px 16px;
@@ -1687,16 +1619,13 @@ ADMIN_HTML = '''
             font-size: 15px;
             font-family: inherit;
             transition: all 0.2s;
+            min-height: 120px;
+            resize: vertical;
         }
-        input:focus,
         textarea:focus {
             outline: none;
             border-color: #00563f;
             box-shadow: 0 0 0 3px rgba(0,86,63,0.1);
-        }
-        textarea {
-            min-height: 120px;
-            resize: vertical;
         }
         .stats-grid {
             display: grid;
@@ -1744,15 +1673,6 @@ ADMIN_HTML = '''
             color: #334155;
             font-size: 14px;
         }
-        .success-message {
-            background: #dcfce7;
-            color: #166534;
-            padding: 16px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 4px solid #16a34a;
-            font-weight: 500;
-        }
     </style>
 </head>
 <body>
@@ -1775,7 +1695,7 @@ ADMIN_HTML = '''
 
         <div id="announcements" class="tab-content active">
             <div class="card">
-                <h2>System Announcements</h2>
+                <h2>Post System Announcement</h2>
                 <form method="POST" action="/admin_announcement">
                     <div class="form-group">
                         <label>Announcement Message</label>
@@ -1835,21 +1755,21 @@ ADMIN_HTML = '''
         <div id="settings" class="tab-content">
             <div class="card">
                 <h2>System Settings</h2>
-                <p style="color: #64748b; margin-bottom: 20px;">Additional settings and configuration options coming soon.</p>
+                <p style="color: #64748b; margin-bottom: 20px;">System configuration and status information.</p>
                 
                 <div class="form-group">
                     <label>System Status</label>
-                    <input type="text" value="Operational" disabled>
+                    <input type="text" value="Operational" disabled style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
                 </div>
                 
                 <div class="form-group">
                     <label>SMS Notifications</label>
-                    <input type="text" value="Enabled" disabled>
+                    <input type="text" value="Configured" disabled style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
                 </div>
                 
                 <div class="form-group">
                     <label>AI Damage Detection</label>
-                    <input type="text" value="Enabled (Roboflow)" disabled>
+                    <input type="text" value="Enabled (Roboflow)" disabled style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px;">
                 </div>
             </div>
         </div>
@@ -1857,23 +1777,18 @@ ADMIN_HTML = '''
 
     <script>
         function switchTab(tabName) {
-            // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-            
-            // Show selected tab
             document.getElementById(tabName).classList.add('active');
             event.target.classList.add('active');
         }
 
-        // Load current announcement
         fetch('/announcement')
             .then(r => r.json())
             .then(data => {
                 document.getElementById('currentAnnouncement').textContent = data.message;
             });
 
-        // Load analytics data
         fetch('/data.json')
             .then(r => r.json())
             .then(data => {
@@ -1883,7 +1798,6 @@ ADMIN_HTML = '''
                 document.getElementById('damageReports').textContent = 
                     data.filter(t => t.damageSummary?.damage).length;
                 
-                // Recent activity
                 const tbody = document.getElementById('recentActivity');
                 const recent = data.slice(-10).reverse();
                 tbody.innerHTML = recent.map(t => `
@@ -1908,7 +1822,7 @@ ADMIN_HTML = '''
 </html>
 '''
 
-# ===================== SHARED LOGIN HTML (staff + admin) =====================
+# ===================== SHARED LOGIN HTML =====================
 LOGIN_HTML = '''
 <!DOCTYPE html>
 <html lang="en">
@@ -2012,17 +1926,6 @@ LOGIN_HTML = '''
             font-size: 13px;
             color: #64748b;
         }
-        .back-link {
-            color: #00563f;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            display: inline-block;
-            margin-top: 12px;
-        }
-        .back-link:hover {
-            text-decoration: underline;
-        }
     </style>
 </head>
 <body>
@@ -2051,7 +1954,6 @@ LOGIN_HTML = '''
         </div>
         <div class="footer">
             <p>Default credentials: admin / valet123</p>
-            <a href="/" class="back-link">Back to dashboard</a>
         </div>
     </div>
 </body>
@@ -2553,7 +2455,6 @@ MAIN_PAGE_HTML = '''
         </div>
     </div>
 
-    <!-- Damage Modal -->
     <div id="damageModal" class="modal">
         <div class="modal-content">
             <span class="modal-close" onclick="closeDamageModal()">&times;</span>
@@ -2595,15 +2496,14 @@ MAIN_PAGE_HTML = '''
 if __name__ == "__main__":
     print("\n" + "="*70)
     print("🚗 VALET OPERATIONS MANAGEMENT SYSTEM")
+    print("   Blue Background + Moffitt Green Branding")
     print("="*70)
     port = int(os.getenv("PORT", 5050))
-    print(f"🌐 URL: http://127.0.0.1:{port}")
-    print(f"📱 SMS: {'ENABLED ✅' if SMS_ENABLED else 'DISABLED ⚠️'}")
-    print(f"🌐 Roboflow: {'ENABLED ✅' if RF_ENABLED else 'DISABLED ⚠️'}")
-    print(f"🤖 YOLOv8: {'ENABLED ✅' if YOLO_ENABLED else 'DISABLED ⚠️ (pip3 install ultralytics)'}")
-    if YOLO_ENABLED:
-        print(f"📦 YOLO Model: {os.getenv('YOLO_MODEL_PATH', 'yolov8n.pt')}")
-    if RF_ENABLED:
-        print(f"📦 RF Model: {RF_MODEL_ID}")
+    print(f"🌐 Main URL: http://127.0.0.1:{port}")
+    print(f"👤 Staff Login: http://127.0.0.1:{port}/login")
+    print(f"👨‍💼 Admin Login: http://127.0.0.1:{port}/admin_login")
+    print(f"📢 Post Announcements: Login as admin → Announcements tab")
+    print(f"🔑 Credentials: admin / valet123")
+    print(f"🎨 Blue background (#1e3a8a) + Green headers (#00563f)")
     print("="*70 + "\n")
     app.run(host="0.0.0.0", port=port, debug=True)

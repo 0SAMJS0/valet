@@ -1462,20 +1462,36 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
             }
 
             let currentQrTicket = null;
-            function openQrModal(ticketId){
+
+            async function openQrModal(ticketId){
                 currentQrTicket = ticketId;
-                const img = document.getElementById('qrImage');
+                const img   = document.getElementById('qrImage');
                 const label = document.getElementById('qrTicketLabel');
-                // bust cache with timestamp
-                img.src = `/static/qrcodes/qr_${ticketId}.png?ts=${Date.now()}`;
+
                 label.textContent = `Ticket #${ticketId}`;
+
+                // Ensure QR file exists by hitting /qrcode/<ticketId>
+                try {
+                    await fetch(`/qrcode/${ticketId}`);
+                } catch (e) {
+                    console.error("Error ensuring QR exists:", e);
+                }
+
+                // Then load the PNG into the image (with cache-buster)
+                img.src = `/static/qrcodes/qr_${ticketId}.png?ts=${Date.now()}`;
+                img.onerror = function () {
+                    this.alt = "QR not available";
+                };
+
                 document.getElementById('qrModal').style.display = 'block';
             }
+
             function closeQrModal(){
                 document.getElementById('qrModal').style.display = 'none';
             }
+
             function openPrintableQr(){
-                if(currentQrTicket){
+                if (currentQrTicket){
                     window.open(`/qrcode/${currentQrTicket}`, '_blank');
                 }
             }

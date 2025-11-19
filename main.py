@@ -325,6 +325,7 @@ for fpath, default in [
 
 # --------------------- Auth helpers ---------------------
 def login_required(func):
+    """Admin login required."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         if not session.get("admin_logged_in"):
@@ -333,6 +334,7 @@ def login_required(func):
     return wrapper
 
 def user_login_required(func):
+    """General staff login required for main site."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         if not session.get("user_logged_in"):
@@ -370,28 +372,25 @@ def index():
         message_type=message_type
     )
 
+# ---------- Staff login ----------
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    error = None
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
 
         # Staff login for accessing the main dashboard
-        if username == "admin" and password == "valet123":
+        admins = load_json(ADMIN_FILE)
+        if any(a.get("username") == username and a.get("password") == password for a in admins):
             session["user_logged_in"] = True
             return redirect(url_for("index"))
 
         error = "Invalid credentials. Please try again."
-        return render_template_string(
-            LOGIN_HTML,
-            error=error,
-            heading="Staff Login",
-            subheading="Sign in to access the valet dashboard."
-        )
 
     return render_template_string(
         LOGIN_HTML,
-        error=None,
+        error=error,
         heading="Staff Login",
         subheading="Sign in to access the valet dashboard."
     )
@@ -608,8 +607,10 @@ def clockout():
     save_json(RUNNER_FILE, runners)
     return redirect("/runner_clockin")
 
+# ---------- Admin login ----------
 @app.route("/admin_login", methods=["GET", "POST"])
 def admin_login():
+    error = None
     if request.method == "POST":
         admins = load_json(ADMIN_FILE)
         u = request.form.get("username", "").strip()
@@ -620,16 +621,10 @@ def admin_login():
             return redirect(url_for("admin_dashboard"))
 
         error = "Invalid credentials. Please try again."
-        return render_template_string(
-            LOGIN_HTML,
-            error=error,
-            heading="Admin Login",
-            subheading="Sign in to manage valet operations and announcements."
-        )
 
     return render_template_string(
         LOGIN_HTML,
-        error=None,
+        error=error,
         heading="Admin Login",
         subheading="Sign in to manage valet operations and announcements."
     )
@@ -638,7 +633,7 @@ def admin_login():
 @login_required
 def admin_logout():
     session.pop("admin_logged_in", None)
-    return redirect("/")
+    return redirect(url_for("admin_login"))
 
 @app.route("/admin")
 @login_required
@@ -729,6 +724,7 @@ def calendar_view():
 def serve_file(filename):
     return send_from_directory(".", filename)
 
+# ===================== MAIN PAGE HTML =====================
 MAIN_PAGE_HTML = '''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1426,7 +1422,7 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
                 <div class="modal-content">
                     <button class="modal-close" onclick="closeQrModal()">Close</button>
                     <h3>Ticket QR Code</h3>
-                    <p id="qrTicketLabel" style="font-size:13px;color:#6b7280;margin-top:4px;"></p>
+                    <p id="qrTicketLabel" style="font-size:13px;color: #6b7280;margin-top:4px;"></p>
                     <div style="text-align:center;margin-top:14px;">
                         <img id="qrImage" src="" alt="Ticket QR code"
                              style="max-width:260px;border:4px solid #111827;border-radius:12px;padding:12px;background:#ffffff;">
@@ -1477,7 +1473,6 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
                     console.error("Error ensuring QR exists:", e);
                 }
 
-                // Then load the PNG into the image (with cache-buster)
                 img.src = `/static/qrcodes/qr_${ticketId}.png?ts=${Date.now()}`;
                 img.onerror = function () {
                     this.alt = "QR not available";
@@ -1516,6 +1511,150 @@ MAIN_PAGE_HTML = '''<!DOCTYPE html>
             {% else %}
             <p class="no-data">No tickets in the system. Check in a vehicle to begin operations.</p>
             {% endif %}
+        </div>
+    </div>
+</body>
+</html>'''
+
+# ===================== SHARED LOGIN HTML (staff + admin) =====================
+LOGIN_HTML = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ heading }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f3f4f6;
+            color: #111827;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 32px 28px 24px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+            border: 1px solid #e5e7eb;
+        }
+        .login-header {
+            margin-bottom: 18px;
+        }
+        .login-header h2 {
+            font-size: 22px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+        .login-header p {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #374151;
+            font-weight: 500;
+            font-size: 13px;
+        }
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+            background: #ffffff;
+            color: #111827;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        input::placeholder { color: #9ca3af; }
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: #b30000;
+            box-shadow: 0 0 0 1px rgba(179, 0, 0, 0.12);
+        }
+        .error {
+            margin-top: 2px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #b91c1c;
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            padding: 8px 10px;
+            border-radius: 6px;
+        }
+        button[type="submit"] {
+            width: 100%;
+            margin-top: 8px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            background-color: #b30000;
+            cursor: pointer;
+            transition: background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        button[type="submit"]:hover {
+            background-color: #930000;
+            box-shadow: 0 3px 10px rgba(179, 0, 0, 0.25);
+        }
+        .hint {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #9ca3af;
+            text-align: center;
+        }
+        .back-link {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 12px;
+        }
+        .back-link a {
+            color: #374151;
+            text-decoration: none;
+        }
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h2>{{ heading }}</h2>
+            <p>{{ subheading }}</p>
+        </div>
+        <form method="POST">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input id="username" name="username" type="text" required autofocus placeholder="Username">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" required placeholder="Password">
+                {% if error %}
+                <div class="error">{{ error }}</div>
+                {% endif %}
+            </div>
+            <button type="submit">Sign In</button>
+        </form>
+        <div class="hint">Default credentials: admin / valet123</div>
+        <div class="back-link">
+            <a href="/">Back to dashboard</a>
         </div>
     </div>
 </body>

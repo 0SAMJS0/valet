@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
 Valet Operations Management System with Damage Detection
-- Blue gradient background with Moffitt green branding
-- Admin login system for posting announcements
-- Staff login for main dashboard access
-- AI-powered vehicle damage detection
+- Red valet branding with blue gradient background
+- Login required for all access
+- Admin login for announcements
+- Runner assignment during checkout
+- Modal QR code display
 """
 
 import os, io, json, datetime, qrcode, cv2
@@ -182,68 +183,7 @@ def detect_with_roboflow(img_path):
         except Exception as e:
             print(f"❌ Roboflow inference error: {e}")
 
-    if not YOLO_ENABLED or yolo_model is None:
-        print(f"⚠️ Skipping detection for {img_path} - no Roboflow and YOLOv8 not available")
-        return {"is_car": True, "damage": False, "severity": "none", "location": [], "boxes": [], "version": "disabled"}
-
-    try:
-        results = yolo_model(img_path, conf=0.25, verbose=False)
-        damage_keywords = ['scratch','dent','crack','broken','damage','rust','collision','shatter']
-        car_keywords = ['car','vehicle','automobile','sedan','suv','truck']
-        is_car = False
-        locations = set()
-        boxes = []
-
-        for result in results:
-            img_height, img_width = result.orig_shape
-            for box in result.boxes:
-                x1, y1, x2, y2 = [int(v) for v in box.xyxy[0].tolist()]
-                conf = float(box.conf[0]); cls_id = int(box.cls[0])
-                label = result.names[cls_id].lower()
-
-                if any(kw in label for kw in car_keywords):
-                    is_car = True
-
-                if any(kw in label for kw in damage_keywords):
-                    cx, cy = (x1+x2)/2, (y1+y2)/2
-                    if cy < img_height/3:
-                        locations.add("front")
-                    elif cy > 2*img_height/3:
-                        locations.add("rear")
-                    if cx < img_width/3 or cx > 2*img_width/3:
-                        locations.add("side")
-
-                    boxes.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2, "label": label, "score": round(conf, 2)})
-
-        boxes = [b for b in boxes if _area(b) >= HARD_MIN_AREA]
-        boxes = sorted(boxes, key=lambda b: b["score"], reverse=True)
-        keep = []
-        for b in boxes:
-            if all(_iou(b, k) < NMS_IOU for k in keep):
-                keep.append(b)
-        boxes = keep
-
-        damage_found = len(boxes) > 0
-        if damage_found and not is_car:
-            is_car = True
-
-        if damage_found:
-            n = len(boxes)
-            severity = "severe" if n >= 4 else "moderate" if n >= 2 else "minor"
-        else:
-            severity = "none"
-
-        return {
-            "is_car": is_car,
-            "damage": damage_found,
-            "location": sorted(list(locations)),
-            "severity": severity,
-            "boxes": boxes,
-            "version": f"yolov8:{os.getenv('YOLO_MODEL_PATH','yolov8n.pt')}"
-        }
-    except Exception as e:
-        print(f"❌ YOLOv8 error: {e}")
-        return {"is_car": True, "damage": False, "severity": "none", "location": [], "boxes": [], "version": "error"}
+    return {"is_car": True, "damage": False, "severity": "none", "location": [], "boxes": [], "version": "disabled"}
 
 # ===================== OPTIONAL: VONAGE SMS =====================
 SMS_ENABLED = False
@@ -362,6 +302,7 @@ def login():
 @app.route("/logout")
 def logout():
     session.pop("user_logged_in", None)
+    session.pop("admin_logged_in", None)
     return redirect(url_for("login"))
 
 @app.route("/checkin", methods=["POST"])
@@ -473,14 +414,17 @@ def checkin():
 def checkout(ticket_id):
     data = load_json(DATA_FILE)
     now = datetime.datetime.now().strftime("%b %d, %Y %I:%M %p")
+    runner = request.form.get("runnerName", "").strip()
 
     for t in data:
         if t.get("ticketID") == ticket_id and t.get("status") == "Checked-In":
             t["status"] = "Checked-Out"
             t["checkOutTime"] = now
+            if runner:
+                t["assignedRunner"] = runner
             save_json(DATA_FILE, data)
             send_sms(t.get("customerPhone", ""), f"Thank you! Ticket #{ticket_id} checked out.")
-            session["message"] = f"✅ Ticket #{ticket_id} checked out"
+            session["message"] = f"✅ Ticket #{ticket_id} checked out" + (f" (Assigned to {runner})" if runner else "")
             session["message_type"] = "success"
             return redirect("/")
 
@@ -503,69 +447,14 @@ def delete_ticket(ticket_id):
     session["message_type"] = "warning"
     return redirect("/")
 
-@app.route("/qrcode/<ticket_id>")
+@app.route("/get_qr/<ticket_id>")
 @user_login_required
-def view_qrcode(ticket_id):
+def get_qr(ticket_id):
+    """Return QR code image path for modal display"""
     qr_path = os.path.join(QRCODE_FOLDER, f"qr_{ticket_id}.png")
     if not os.path.exists(qr_path):
         generate_qr_code(ticket_id)
-    return f'''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>QR Code #{ticket_id}</title>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 50px;
-            background: #f5f5f5;
-        }}
-        .qr-container {{
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            display: inline-block;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }}
-        img {{ border: 2px solid #ccc; padding: 10px; background: white; }}
-        button {{
-            margin: 20px 10px;
-            padding: 12px 24px;
-            font-size: 16px;
-            cursor: pointer;
-            border: none;
-            border-radius: 8px;
-            background: #00563f;
-            color: white;
-        }}
-        button:hover {{ background: #004030; }}
-    </style>
-</head>
-<body>
-    <div class="qr-container">
-        <h1>Ticket #{ticket_id}</h1>
-        <img src="/static/qrcodes/qr_{ticket_id}.png" alt="QR Code">
-        <br>
-        <button onclick="window.print()">Print</button>
-        <button onclick="window.close()">Close</button>
-    </div>
-</body>
-</html>
-'''
-
-@app.route("/assign_runner/<ticket_id>", methods=["POST"])
-@user_login_required
-def assign_runner(ticket_id):
-    data = load_json(DATA_FILE)
-    runner = request.form.get("runnerName")
-    for t in data:
-        if t.get("ticketID") == ticket_id:
-            t["assignedRunner"] = runner
-            break
-    save_json(DATA_FILE, data)
-    session["message"] = f"✅ Runner {runner} assigned to #{ticket_id}"
-    return redirect("/")
+    return jsonify({"qr_url": f"/static/qrcodes/qr_{ticket_id}.png"})
 
 @app.route("/vehicle_ready/<ticket_id>", methods=["POST"])
 @user_login_required
@@ -621,10 +510,11 @@ def admin_login():
         p = request.form.get("password", "").strip()
         if any(a.get("username") == u and a.get("password") == p for a in admins):
             session["admin_logged_in"] = True
+            session["user_logged_in"] = True  # Also grant user access
             return redirect(url_for("admin_dashboard"))
         error = "Invalid credentials. Please try again."
 
-    return render_template_string(LOGIN_HTML, error=error, heading="Admin Login", subheading="Sign in to manage valet operations and announcements.")
+    return render_template_string(LOGIN_HTML, error=error, heading="Admin Login", subheading="Sign in to manage announcements and operations.")
 
 @app.route("/admin_logout")
 @login_required
@@ -752,7 +642,7 @@ RUNNER_PAGE_HTML = '''
             overflow: hidden;
         }
         .header {
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -772,7 +662,7 @@ RUNNER_PAGE_HTML = '''
             color: #1e293b;
             margin-bottom: 20px;
             padding-bottom: 12px;
-            border-bottom: 2px solid #00563f;
+            border-bottom: 2px solid #dc2626;
         }
         .form-group {
             margin-bottom: 16px;
@@ -794,8 +684,8 @@ RUNNER_PAGE_HTML = '''
         }
         input[type="text"]:focus {
             outline: none;
-            border-color: #00563f;
-            box-shadow: 0 0 0 3px rgba(0,86,63,0.1);
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
         }
         .btn {
             padding: 12px 28px;
@@ -809,12 +699,12 @@ RUNNER_PAGE_HTML = '''
             text-decoration: none;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0,86,63,0.3);
+            box-shadow: 0 8px 20px rgba(220,38,38,0.3);
         }
         .btn-secondary {
             background: #64748b;
@@ -826,12 +716,12 @@ RUNNER_PAGE_HTML = '''
         }
         .btn-back {
             background: white;
-            color: #00563f;
-            border: 2px solid #00563f;
+            color: #dc2626;
+            border: 2px solid #dc2626;
             margin-bottom: 20px;
         }
         .btn-back:hover {
-            background: #00563f;
+            background: #dc2626;
             color: white;
         }
         table {
@@ -977,7 +867,7 @@ ANNOUNCEMENT_HTML = '''
             overflow: hidden;
         }
         .header {
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -1005,8 +895,8 @@ ANNOUNCEMENT_HTML = '''
         }
         .btn-back {
             background: white;
-            color: #00563f;
-            border: 2px solid #00563f;
+            color: #dc2626;
+            border: 2px solid #dc2626;
             padding: 12px 28px;
             border-radius: 8px;
             font-size: 15px;
@@ -1016,7 +906,7 @@ ANNOUNCEMENT_HTML = '''
             transition: all 0.2s;
         }
         .btn-back:hover {
-            background: #00563f;
+            background: #dc2626;
             color: white;
             transform: translateY(-2px);
         }
@@ -1073,7 +963,7 @@ SHIFT_PORTAL_HTML = '''
             overflow: hidden;
         }
         .header {
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -1083,8 +973,8 @@ SHIFT_PORTAL_HTML = '''
         .content { padding: 30px; }
         .btn-back {
             background: white;
-            color: #00563f;
-            border: 2px solid #00563f;
+            color: #dc2626;
+            border: 2px solid #dc2626;
             padding: 12px 28px;
             border-radius: 8px;
             font-size: 15px;
@@ -1095,7 +985,7 @@ SHIFT_PORTAL_HTML = '''
             margin-bottom: 20px;
         }
         .btn-back:hover {
-            background: #00563f;
+            background: #dc2626;
             color: white;
         }
         .card {
@@ -1110,7 +1000,7 @@ SHIFT_PORTAL_HTML = '''
             color: #1e293b;
             margin-bottom: 20px;
             padding-bottom: 12px;
-            border-bottom: 2px solid #00563f;
+            border-bottom: 2px solid #dc2626;
         }
         .shift-grid {
             display: grid;
@@ -1126,8 +1016,8 @@ SHIFT_PORTAL_HTML = '''
             transition: all 0.2s;
         }
         .shift-card:hover {
-            border-color: #00563f;
-            box-shadow: 0 4px 12px rgba(0,86,63,0.1);
+            border-color: #dc2626;
+            box-shadow: 0 4px 12px rgba(220,38,38,0.1);
         }
         .shift-card h3 {
             font-size: 18px;
@@ -1166,12 +1056,12 @@ SHIFT_PORTAL_HTML = '''
             width: 100%;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,86,63,0.3);
+            box-shadow: 0 4px 12px rgba(220,38,38,0.3);
         }
         .btn-danger {
             background: #ef4444;
@@ -1195,7 +1085,7 @@ SHIFT_PORTAL_HTML = '''
         }
         .form-inline input:focus {
             outline: none;
-            border-color: #00563f;
+            border-color: #dc2626;
         }
         .empty-state {
             text-align: center;
@@ -1341,7 +1231,7 @@ CALENDAR_HTML = '''
             overflow: hidden;
         }
         .header {
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -1351,8 +1241,8 @@ CALENDAR_HTML = '''
         .content { padding: 30px; }
         .btn-back {
             background: white;
-            color: #00563f;
-            border: 2px solid #00563f;
+            color: #dc2626;
+            border: 2px solid #dc2626;
             padding: 12px 28px;
             border-radius: 8px;
             font-size: 15px;
@@ -1363,7 +1253,7 @@ CALENDAR_HTML = '''
             margin-bottom: 20px;
         }
         .btn-back:hover {
-            background: #00563f;
+            background: #dc2626;
             color: white;
         }
         .calendar-grid {
@@ -1376,7 +1266,7 @@ CALENDAR_HTML = '''
             overflow: hidden;
         }
         .calendar-header {
-            background: #00563f;
+            background: #dc2626;
             color: white;
             padding: 16px;
             text-align: center;
@@ -1503,7 +1393,7 @@ ADMIN_HTML = '''
             padding: 20px;
         }
         .header {
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             padding: 30px;
             border-radius: 16px 16px 0 0;
@@ -1537,12 +1427,12 @@ ADMIN_HTML = '''
             display: inline-block;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,86,63,0.3);
+            box-shadow: 0 4px 12px rgba(220,38,38,0.3);
         }
         .btn-logout {
             background: #ef4444;
@@ -1570,12 +1460,12 @@ ADMIN_HTML = '''
             transition: all 0.2s;
         }
         .tab:hover {
-            color: #00563f;
+            color: #dc2626;
             background: #f8fafc;
         }
         .tab.active {
-            color: #00563f;
-            border-bottom-color: #00563f;
+            color: #dc2626;
+            border-bottom-color: #dc2626;
         }
         .tab-content {
             background: white;
@@ -1599,7 +1489,7 @@ ADMIN_HTML = '''
             color: #1e293b;
             margin-bottom: 16px;
             padding-bottom: 12px;
-            border-bottom: 2px solid #00563f;
+            border-bottom: 2px solid #dc2626;
         }
         .form-group {
             margin-bottom: 20px;
@@ -1624,8 +1514,8 @@ ADMIN_HTML = '''
         }
         textarea:focus {
             outline: none;
-            border-color: #00563f;
-            box-shadow: 0 0 0 3px rgba(0,86,63,0.1);
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
         }
         .stats-grid {
             display: grid;
@@ -1634,11 +1524,11 @@ ADMIN_HTML = '''
             margin-bottom: 30px;
         }
         .stat-card {
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             padding: 24px;
             border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,86,63,0.2);
+            box-shadow: 0 4px 12px rgba(220,38,38,0.2);
         }
         .stat-card h3 {
             font-size: 14px;
@@ -1850,7 +1740,7 @@ LOGIN_HTML = '''
             max-width: 450px;
         }
         .header {
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             padding: 40px 30px;
             text-align: center;
@@ -1886,8 +1776,8 @@ LOGIN_HTML = '''
         }
         input:focus {
             outline: none;
-            border-color: #00563f;
-            box-shadow: 0 0 0 3px rgba(0,86,63,0.1);
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
         }
         {% if error %}
         .error-message {
@@ -1903,7 +1793,7 @@ LOGIN_HTML = '''
         .btn-submit {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             border: none;
             border-radius: 8px;
@@ -1914,7 +1804,7 @@ LOGIN_HTML = '''
         }
         .btn-submit:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0,86,63,0.3);
+            box-shadow: 0 8px 20px rgba(220,38,38,0.3);
         }
         .footer {
             text-align: center;
@@ -1925,6 +1815,16 @@ LOGIN_HTML = '''
         .footer p {
             font-size: 13px;
             color: #64748b;
+        }
+        .footer a {
+            color: #dc2626;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 8px;
+        }
+        .footer a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -1954,6 +1854,7 @@ LOGIN_HTML = '''
         </div>
         <div class="footer">
             <p>Default credentials: admin / valet123</p>
+            <a href="/admin_login">Admin Login</a>
         </div>
     </div>
 </body>
@@ -1982,7 +1883,7 @@ MAIN_PAGE_HTML = '''
             padding: 20px;
         }
         .header {
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             padding: 30px;
             border-radius: 16px 16px 0 0;
@@ -2007,7 +1908,7 @@ MAIN_PAGE_HTML = '''
         }
         .nav-btn {
             padding: 10px 20px;
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             text-decoration: none;
             border-radius: 8px;
@@ -2017,7 +1918,7 @@ MAIN_PAGE_HTML = '''
         }
         .nav-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,86,63,0.3);
+            box-shadow: 0 4px 12px rgba(220,38,38,0.3);
         }
         .nav-btn.admin {
             background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
@@ -2068,7 +1969,7 @@ MAIN_PAGE_HTML = '''
             color: #334155;
         }
         .stats-bar span {
-            color: #00563f;
+            color: #dc2626;
             font-size: 24px;
         }
         .section-title {
@@ -2076,7 +1977,7 @@ MAIN_PAGE_HTML = '''
             color: #1e293b;
             margin-bottom: 20px;
             padding-bottom: 12px;
-            border-bottom: 3px solid #00563f;
+            border-bottom: 3px solid #dc2626;
         }
         .form-grid {
             display: grid;
@@ -2094,7 +1995,7 @@ MAIN_PAGE_HTML = '''
             margin-bottom: 6px;
             font-size: 14px;
         }
-        input, textarea {
+        input, textarea, select {
             padding: 12px 14px;
             border: 2px solid #e2e8f0;
             border-radius: 8px;
@@ -2102,10 +2003,10 @@ MAIN_PAGE_HTML = '''
             font-family: inherit;
             transition: all 0.2s;
         }
-        input:focus, textarea:focus {
+        input:focus, textarea:focus, select:focus {
             outline: none;
-            border-color: #00563f;
-            box-shadow: 0 0 0 3px rgba(0,86,63,0.1);
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
         }
         .file-upload-box {
             grid-column: 1 / -1;
@@ -2129,7 +2030,7 @@ MAIN_PAGE_HTML = '''
         .btn-submit {
             grid-column: 1 / -1;
             padding: 16px;
-            background: linear-gradient(135deg, #00563f 0%, #006747 100%);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             border: none;
             border-radius: 12px;
@@ -2140,7 +2041,7 @@ MAIN_PAGE_HTML = '''
         }
         .btn-submit:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0,86,63,0.3);
+            box-shadow: 0 8px 24px rgba(220,38,38,0.3);
         }
         table {
             width: 100%;
@@ -2185,13 +2086,15 @@ MAIN_PAGE_HTML = '''
             cursor: pointer;
             margin: 2px;
             transition: all 0.2s;
+            text-decoration: none;
+            color: white;
         }
         .btn-primary {
-            background: #00563f;
+            background: #dc2626;
             color: white;
         }
         .btn-primary:hover {
-            background: #004030;
+            background: #b91c1c;
             transform: translateY(-1px);
         }
         .btn-danger {
@@ -2210,22 +2113,31 @@ MAIN_PAGE_HTML = '''
             height: 100%;
             background: rgba(0,0,0,0.7);
             z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show {
+            display: flex;
         }
         .modal-content {
             background: white;
-            margin: 3% auto;
             padding: 30px;
-            max-width: 1000px;
+            max-width: 600px;
             border-radius: 16px;
             max-height: 90vh;
             overflow-y: auto;
+            position: relative;
         }
         .modal-close {
-            float: right;
+            position: absolute;
+            top: 15px;
+            right: 20px;
             font-size: 32px;
             font-weight: bold;
             cursor: pointer;
             color: #64748b;
+            background: none;
+            border: none;
         }
         .modal-close:hover {
             color: #dc2626;
@@ -2240,6 +2152,17 @@ MAIN_PAGE_HTML = '''
             width: 100%;
             border-radius: 8px;
             border: 2px solid #e2e8f0;
+        }
+        .qr-display {
+            text-align: center;
+            padding: 20px;
+        }
+        .qr-display img {
+            max-width: 300px;
+            border: 2px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 12px;
+            background: white;
         }
         .pagination {
             display: flex;
@@ -2259,13 +2182,13 @@ MAIN_PAGE_HTML = '''
             transition: all 0.2s;
         }
         .pagination a:hover {
-            border-color: #00563f;
-            color: #00563f;
+            border-color: #dc2626;
+            color: #dc2626;
         }
         .pagination a.active {
-            background: #00563f;
+            background: #dc2626;
             color: white;
-            border-color: #00563f;
+            border-color: #dc2626;
         }
         .empty-state {
             text-align: center;
@@ -2282,7 +2205,7 @@ MAIN_PAGE_HTML = '''
     <div class="container">
         <div class="header">
             <h1>Valet Operations System</h1>
-            <p>Moffitt Cancer Center · Red Ramp Valet</p>
+            <p>Red Ramp Valet • Professional Service</p>
         </div>
 
         <div class="nav-bar">
@@ -2347,6 +2270,15 @@ MAIN_PAGE_HTML = '''
                         <label>Ticket Number</label>
                         <input type="text" name="ticket_id" required>
                     </div>
+                    <div class="form-group">
+                        <label>Assign Runner (Optional)</label>
+                        <select name="runnerName">
+                            <option value="">-- Select Runner --</option>
+                            {% for r in runners %}
+                            <option>{{r.name}}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <button type="submit" class="btn-submit">Process Checkout</button>
                 </div>
             </form>
@@ -2397,27 +2329,24 @@ MAIN_PAGE_HTML = '''
                         </td>
                         <td>
                             {% if t.status == 'Checked-In' %}
-                            <a href="/qrcode/{{t.ticketID}}" class="btn-action btn-primary" target="_blank">View QR</a>
+                            <button class="btn-action btn-primary" onclick="showQRModal('{{t.ticketID}}')">View QR</button>
                             {% else %}
                             —
                             {% endif %}
                         </td>
                         <td>
                             {% if t.status == 'Checked-In' %}
-                            <form method="POST" action="/assign_runner/{{t.ticketID}}" style="display: inline-block; margin: 4px 0;">
-                                <select name="runnerName" required style="padding: 6px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                                    <option value="">Assign Runner</option>
+                            <form method="POST" action="/vehicle_ready/{{t.ticketID}}" style="display: inline-block;">
+                                <button type="submit" class="btn-action btn-primary">Ready</button>
+                            </form>
+                            <br>
+                            <form method="POST" action="/checkout/{{t.ticketID}}" style="display: inline-block; margin: 4px 0;">
+                                <select name="runnerName" style="padding: 6px; border-radius: 6px; border: 1px solid #e2e8f0; margin-right: 4px;">
+                                    <option value="">Select Runner</option>
                                     {% for r in runners %}
                                     <option>{{r.name}}</option>
                                     {% endfor %}
                                 </select>
-                                <button type="submit" class="btn-action btn-primary">Assign</button>
-                            </form>
-                            <br>
-                            <form method="POST" action="/vehicle_ready/{{t.ticketID}}" style="display: inline-block;">
-                                <button type="submit" class="btn-action btn-primary">Ready</button>
-                            </form>
-                            <form method="POST" action="/checkout/{{t.ticketID}}" style="display: inline-block;">
                                 <button type="submit" class="btn-action btn-primary">Checkout</button>
                             </form>
                             {% endif %}
@@ -2455,11 +2384,24 @@ MAIN_PAGE_HTML = '''
         </div>
     </div>
 
+    <!-- Damage Modal -->
     <div id="damageModal" class="modal">
         <div class="modal-content">
-            <span class="modal-close" onclick="closeDamageModal()">&times;</span>
+            <button class="modal-close" onclick="closeDamageModal()">&times;</button>
             <h2 style="margin-bottom: 20px;">Damage Assessment Photos</h2>
             <div class="photo-grid" id="damagePhotos"></div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qrModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeQRModal()">&times;</button>
+            <h2 style="margin-bottom: 20px; text-align: center;">Ticket QR Code</h2>
+            <div class="qr-display" id="qrDisplay"></div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="window.print()" class="btn-action btn-primary">Print</button>
+            </div>
         </div>
     </div>
 
@@ -2474,17 +2416,41 @@ MAIN_PAGE_HTML = '''
                 img.alt = 'Damage photo';
                 grid.appendChild(img);
             });
-            modal.style.display = 'block';
+            modal.classList.add('show');
         }
 
         function closeDamageModal() {
-            document.getElementById('damageModal').style.display = 'none';
+            document.getElementById('damageModal').classList.remove('show');
         }
 
+        function showQRModal(ticketID) {
+            const modal = document.getElementById('qrModal');
+            const display = document.getElementById('qrDisplay');
+            
+            fetch(`/get_qr/${ticketID}`)
+                .then(r => r.json())
+                .then(data => {
+                    display.innerHTML = `
+                        <h3>Ticket #${ticketID}</h3>
+                        <img src="${data.qr_url}" alt="QR Code">
+                    `;
+                    modal.classList.add('show');
+                });
+        }
+
+        function closeQRModal() {
+            document.getElementById('qrModal').classList.remove('show');
+        }
+
+        // Close modals when clicking outside
         window.onclick = function(event) {
-            const modal = document.getElementById('damageModal');
-            if (event.target == modal) {
-                modal.style.display = 'none';
+            const damageModal = document.getElementById('damageModal');
+            const qrModal = document.getElementById('qrModal');
+            if (event.target == damageModal) {
+                closeDamageModal();
+            }
+            if (event.target == qrModal) {
+                closeQRModal();
             }
         }
     </script>
@@ -2496,14 +2462,13 @@ MAIN_PAGE_HTML = '''
 if __name__ == "__main__":
     print("\n" + "="*70)
     print("🚗 VALET OPERATIONS MANAGEMENT SYSTEM")
-    print("   Blue Background + Moffitt Green Branding")
+    print("   Red Valet Branding + Blue Background")
     print("="*70)
     port = int(os.getenv("PORT", 5050))
     print(f"🌐 Main URL: http://127.0.0.1:{port}")
     print(f"👤 Staff Login: http://127.0.0.1:{port}/login")
     print(f"👨‍💼 Admin Login: http://127.0.0.1:{port}/admin_login")
-    print(f"📢 Post Announcements: Login as admin → Announcements tab")
     print(f"🔑 Credentials: admin / valet123")
-    print(f"🎨 Blue background (#1e3a8a) + Green headers (#00563f)")
+    print(f"🎨 Red branding (#dc2626) + Blue background (#1e3a8a)")
     print("="*70 + "\n")
     app.run(host="0.0.0.0", port=port, debug=True)
